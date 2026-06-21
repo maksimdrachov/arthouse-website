@@ -45,13 +45,19 @@ This repo is scaffolded as a small server-rendered Node.js application. It is in
    npm run db:migrate
    ```
 
-5. Start the development server:
+5. Seed an admin account:
+
+   ```sh
+   ADMIN_PASSWORD="choose-a-password" npm run seed:admin
+   ```
+
+6. Start the development server:
 
    ```sh
    npm run dev
    ```
 
-6. Open `http://localhost:3000`.
+7. Open `http://localhost:3000`.
 
 ## Useful Scripts
 
@@ -61,6 +67,8 @@ This repo is scaffolded as a small server-rendered Node.js application. It is in
 - `npm run start` runs the compiled server.
 - `npm run db:migrate` applies pending SQL migrations in development.
 - `npm run db:migrate:compiled` applies pending SQL migrations after `npm run build`.
+- `npm run seed:admin` creates or updates the admin account in development.
+- `npm run seed:admin:compiled` creates or updates the admin account after `npm run build`.
 
 ## Implementation Notes
 
@@ -68,6 +76,8 @@ This repo is scaffolded as a small server-rendered Node.js application. It is in
 - Registration, login, dashboard, and admin pages should live in `src/routes/private.ts` initially.
 - Use the repository exports from `src/db/index.ts` for database access instead of preparing SQL directly in route handlers.
 - Use the tables in `db/migrations/001_initial.sql` as the starting data model for artists, registration codes, items, item photos, and reservations.
+- Auth uses cookie sessions and Node's built-in `scrypt` password hashing via `src/auth/passwords.ts`.
+- Admin accounts are seeded with `ADMIN_PASSWORD`, `ADMIN_NAME`, `ADMIN_SLUG`, and `ADMIN_BANK_ACCOUNT`.
 - Uploaded banners and item photos should be stored under `uploads/` in development. Use `UPLOADS_DIR` to point production uploads at persistent storage.
 - The existing `assets/` directory should stay for checked-in seed/demo imagery.
 - Passwords must be hashed before storage. Add `bcrypt` or `argon2` when implementing registration.
@@ -92,6 +102,10 @@ For a simple VPS deployment:
    DATABASE_PATH=/var/lib/arthouse/arthouse.sqlite
    UPLOADS_DIR=/var/lib/arthouse/uploads
    SESSION_SECRET=<long-random-secret>
+   ADMIN_PASSWORD=<temporary-admin-password>
+   ADMIN_NAME=Admin
+   ADMIN_SLUG=admin
+   ADMIN_BANK_ACCOUNT=<admin-bank-account>
    ```
 
 4. Ensure the database and upload directories are persistent and writable by the app user:
@@ -112,19 +126,25 @@ For a simple VPS deployment:
    npm run db:migrate:compiled
    ```
 
-7. Optionally remove development dependencies:
+7. Seed or update the admin account:
+
+   ```sh
+   npm run seed:admin:compiled
+   ```
+
+8. Optionally remove development dependencies:
 
    ```sh
    npm prune --omit=dev
    ```
 
-8. Start the server:
+9. Start the server:
 
    ```sh
    npm run start
    ```
 
-9. Put a reverse proxy such as Nginx or Caddy in front of the Node server for HTTPS, compression, and static-file caching.
+10. Put a reverse proxy such as Nginx or Caddy in front of the Node server for HTTPS, compression, and static-file caching.
 
 For a platform deployment, use the same build/start commands and configure `NODE_ENV`, `PORT`, `DATABASE_PATH`, `UPLOADS_DIR`, and `SESSION_SECRET` in the platform settings. The app needs persistent storage for both the SQLite database and uploads; if the platform does not provide a persistent disk, use PostgreSQL and object storage instead of local SQLite/uploads.
 

@@ -1,7 +1,7 @@
 1. [x] Database access layer
    Add a small DB module around SQLite in src/, with helpers for artists, registration codes, items, photos, and reservations.
 
-2. Auth + registration
+2. [x] Auth + registration
    Implement:
     - admin seed account
     - admin-generated 6-digit registration codes

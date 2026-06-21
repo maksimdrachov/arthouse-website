@@ -7,8 +7,10 @@ export {
 } from "./database.js";
 export {
   createArtist,
+  countArtistsByRole,
   deleteArtist,
   findArtistById,
+  findArtistByLoginIdentifier,
   findArtistBySlug,
   listArtists,
   listArtistsRandomized,

@@ -1,0 +1,48 @@
+{% extends "layouts/base.njk" %}
+
+{% block content %}
+  <section class="window">
+    <div class="window-title">Admin</div>
+    <div class="window-body">
+      <h1>Admin</h1>
+
+      {% if generatedCode %}
+        <div class="message message-info">Generated registration code: <strong>{{ generatedCode }}</strong></div>
+      {% endif %}
+
+      <form class="form-actions" action="/admin/registration-codes" method="post">
+        <button type="submit">Generate registration code</button>
+      </form>
+    </div>
+  </section>
+
+  <section class="window">
+    <div class="window-title">Registration codes</div>
+    <div class="window-body">
+      {% if registrationCodes.length %}
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Code</th>
+              <th>Status</th>
+              <th>Created</th>
+              <th>Used by artist ID</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for code in registrationCodes %}
+              <tr>
+                <td><code>{{ code.code }}</code></td>
+                <td>{% if code.usedAt %}Used{% else %}Unused{% endif %}</td>
+                <td>{{ code.createdAt }}</td>
+                <td>{{ code.usedByArtistId or "" }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p>No registration codes have been generated yet.</p>
+      {% endif %}
+    </div>
+  </section>
+{% endblock %}

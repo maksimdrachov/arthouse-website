@@ -1,0 +1,42 @@
+{% extends "layouts/base.njk" %}
+
+{% block content %}
+  <section class="window">
+    <div class="window-title">Login</div>
+    <div class="window-body">
+      <h1>Login</h1>
+
+      {% if loggedOut %}
+        <div class="message message-info">You have been logged out.</div>
+      {% endif %}
+
+      {% if errors.length %}
+        <div class="message message-error" role="alert">
+          <ul>
+            {% for error in errors %}
+              <li>{{ error }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+
+      <form class="form-grid" action="/login" method="post">
+        <input type="hidden" name="next" value="{{ values.next }}">
+
+        <label class="form-row">
+          <span>Artist/admin name</span>
+          <input name="identifier" value="{{ values.identifier }}" autocomplete="username" required>
+        </label>
+
+        <label class="form-row">
+          <span>Password</span>
+          <input name="password" type="password" autocomplete="current-password" required>
+        </label>
+
+        <div class="form-actions">
+          <button type="submit">Login</button>
+        </div>
+      </form>
+    </div>
+  </section>
+{% endblock %}

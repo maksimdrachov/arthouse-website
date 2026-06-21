@@ -3,6 +3,7 @@ import session from "express-session";
 import nunjucks from "nunjucks";
 import path from "node:path";
 
+import { loadCurrentArtist } from "./auth/session.js";
 import { env, isProduction } from "./config/env.js";
 import privateRoutes from "./routes/private.js";
 import publicRoutes from "./routes/public.js";
@@ -37,6 +38,7 @@ export const createApp = (): express.Express => {
       }
     })
   );
+  app.use(loadCurrentArtist);
 
   app.use("/assets", express.static(path.join(rootDir, "assets")));
   app.use("/uploads", express.static(path.resolve(env.uploadsDir)));

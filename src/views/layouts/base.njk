@@ -12,8 +12,18 @@
         <a class="site-logo" href="/">ArtHouse</a>
         <nav class="site-nav" aria-label="Primary">
           <a href="/">Home</a>
-          <a href="/register">Register</a>
-          <a href="/login">Login</a>
+          {% if currentArtist %}
+            <a href="/dashboard">Dashboard</a>
+            {% if isAdmin %}
+              <a href="/admin">Admin</a>
+            {% endif %}
+            <form class="inline-form" action="/logout" method="post">
+              <button class="link-button" type="submit">Logout</button>
+            </form>
+          {% else %}
+            <a href="/register">Register</a>
+            <a href="/login">Login</a>
+          {% endif %}
         </nav>
       </header>
 

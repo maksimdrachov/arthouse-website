@@ -87,6 +87,24 @@ export const findArtistBySlug = (slug: string): Artist | null => {
   return row ? mapArtist(row) : null;
 };
 
+export const findArtistByLoginIdentifier = (identifier: string): Artist | null => {
+  const normalizedIdentifier = identifier.trim();
+  const row = getDatabase()
+    .prepare<[string, string], ArtistRow>(
+      `
+        SELECT *
+        FROM artists
+        WHERE slug = ? COLLATE NOCASE
+          OR name = ? COLLATE NOCASE
+        ORDER BY role = 'admin' DESC, id ASC
+        LIMIT 1
+      `
+    )
+    .get(normalizedIdentifier, normalizedIdentifier);
+
+  return row ? mapArtist(row) : null;
+};
+
 export const listArtists = (): Artist[] => {
   return getDatabase()
     .prepare<[], ArtistRow>("SELECT * FROM artists ORDER BY name COLLATE NOCASE")
@@ -167,4 +185,12 @@ export const updateArtist = (id: number, input: UpdateArtistInput): Artist | nul
 export const deleteArtist = (id: number): boolean => {
   const result = getDatabase().prepare<[number]>("DELETE FROM artists WHERE id = ?").run(id);
   return result.changes > 0;
+};
+
+export const countArtistsByRole = (role: ArtistRole): number => {
+  const row = getDatabase()
+    .prepare<[ArtistRole], { count: number }>("SELECT COUNT(*) AS count FROM artists WHERE role = ?")
+    .get(role);
+
+  return row?.count ?? 0;
 };

@@ -1,0 +1,61 @@
+{% extends "layouts/base.njk" %}
+
+{% block content %}
+  <section class="window">
+    <div class="window-title">Artist registration</div>
+    <div class="window-body">
+      <h1>Artist registration</h1>
+
+      {% if errors.length %}
+        <div class="message message-error" role="alert">
+          <ul>
+            {% for error in errors %}
+              <li>{{ error }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+
+      <form class="form-grid" action="/register" method="post">
+        <label class="form-row">
+          <span>Registration code</span>
+          <input name="registrationCode" value="{{ values.registrationCode }}" inputmode="numeric" maxlength="6" autocomplete="one-time-code" required>
+        </label>
+
+        <label class="form-row">
+          <span>Artist name</span>
+          <input name="artistName" value="{{ values.artistName }}" autocomplete="name" required>
+        </label>
+
+        <label class="form-row">
+          <span>Password</span>
+          <input name="password" type="password" autocomplete="new-password" minlength="8" required>
+        </label>
+
+        <label class="form-row">
+          <span>Bank account</span>
+          <input name="bankAccount" value="{{ values.bankAccount }}" autocomplete="off" required>
+        </label>
+
+        <label class="form-row">
+          <span>About</span>
+          <textarea name="about" rows="4">{{ values.about }}</textarea>
+        </label>
+
+        <label class="form-row">
+          <span>Telegram</span>
+          <input name="telegram" value="{{ values.telegram }}" autocomplete="off">
+        </label>
+
+        <label class="form-row">
+          <span>Instagram</span>
+          <input name="instagram" value="{{ values.instagram }}" autocomplete="off">
+        </label>
+
+        <div class="form-actions">
+          <button type="submit">Create account</button>
+        </div>
+      </form>
+    </div>
+  </section>
+{% endblock %}

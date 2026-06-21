@@ -1,0 +1,43 @@
+{% extends "layouts/base.njk" %}
+
+{% block content %}
+  <section class="window">
+    <div class="window-title">Artist dashboard</div>
+    <div class="window-body">
+      <h1>{{ artist.name }}</h1>
+
+      {% if registered %}
+        <div class="message message-info">Account created. You are logged in.</div>
+      {% endif %}
+
+      <dl class="detail-list">
+        <div>
+          <dt>Store URL</dt>
+          <dd><a href="/artists/{{ artist.slug }}">/artists/{{ artist.slug }}</a></dd>
+        </div>
+        <div>
+          <dt>Role</dt>
+          <dd>{{ artist.role }}</dd>
+        </div>
+        <div>
+          <dt>Bank account</dt>
+          <dd>{{ artist.bankAccount }}</dd>
+        </div>
+        {% if artist.telegram %}
+          <div>
+            <dt>Telegram</dt>
+            <dd>{{ artist.telegram }}</dd>
+          </div>
+        {% endif %}
+        {% if artist.instagram %}
+          <div>
+            <dt>Instagram</dt>
+            <dd>{{ artist.instagram }}</dd>
+          </div>
+        {% endif %}
+      </dl>
+
+      <p>Profile editing and item management will be implemented in step 3.</p>
+    </div>
+  </section>
+{% endblock %}
