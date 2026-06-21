@@ -10,22 +10,27 @@ import {
   createItem,
   createItemPhoto,
   createRegistrationCode,
+  deleteArtist,
   deleteItem,
   deleteItemPhoto,
+  findArtistById,
   findArtistByLoginIdentifier,
   findItemByArtistAndSlug,
   findItemById,
   findItemPhotoById,
   findRegistrationCode,
+  listArtists,
   listItemPhotosByItemId,
   listItemsByArtistId,
   listRegistrationCodes,
+  listReservations,
+  listSoldItems,
   markRegistrationCodeUsed,
   runInTransaction,
   updateArtist,
   updateItem
 } from "../db/index.js";
-import type { Artist, Item, ItemAvailability, ItemPhoto } from "../db/index.js";
+import type { Artist, Item, ItemAvailability, ItemPhoto, Reservation } from "../db/index.js";
 import {
   deleteStoredUpload,
   deleteUploadedFiles,
@@ -71,6 +76,23 @@ interface ItemFormValues {
 interface DashboardItemView extends Item {
   priceDisplay: string;
   primaryPhoto: ItemPhoto | null;
+}
+
+interface AdminReservationView extends Reservation {
+  artist: Artist | null;
+  item: Item | null;
+  priceDisplay: string;
+}
+
+interface AdminSoldItemView extends Item {
+  artist: Artist | null;
+  priceDisplay: string;
+}
+
+interface AdminArtistView extends Artist {
+  itemCount: number;
+  reservationCount: number;
+  soldItemCount: number;
 }
 
 const toTrimmedString = (value: unknown): string => {
@@ -241,6 +263,49 @@ const buildDashboardItems = (artistId: number): DashboardItemView[] => {
       primaryPhoto: photos[0] ?? null
     };
   });
+};
+
+const buildAdminReservationReports = (): AdminReservationView[] => {
+  return listReservations().map((reservation) => {
+    const item = findItemById(reservation.itemId);
+    const artist = findArtistById(reservation.artistId);
+
+    return {
+      ...reservation,
+      artist,
+      item,
+      priceDisplay: item ? formatPrice(item.priceCents, item.currency) : ""
+    };
+  });
+};
+
+const buildAdminSoldItemReports = (): AdminSoldItemView[] => {
+  return listSoldItems().map((item) => ({
+    ...item,
+    artist: findArtistById(item.artistId),
+    priceDisplay: formatPrice(item.priceCents, item.currency)
+  }));
+};
+
+const buildAdminArtistReports = (): AdminArtistView[] => {
+  return listArtists()
+    .filter((artist) => artist.role === "artist")
+    .map((artist) => {
+      const items = listItemsByArtistId(artist.id);
+      const reservations = listReservations({ artistId: artist.id });
+
+      return {
+        ...artist,
+        itemCount: items.length,
+        reservationCount: reservations.length,
+        soldItemCount: items.filter((item) => item.availability === "sold").length
+      };
+    });
+};
+
+const redirectToAdmin = (response: Response, params: Record<string, string>): void => {
+  const query = new URLSearchParams(params).toString();
+  response.redirect(`/admin${query ? `?${query}` : ""}`);
 };
 
 router.get("/register", (_request, response) => {
@@ -787,7 +852,12 @@ router.get("/admin", requireRole("admin"), (request, response) => {
     title: "Admin",
     artist: response.locals.currentArtist,
     registrationCodes: listRegistrationCodes(),
-    generatedCode: toTrimmedString(request.query.generatedCode)
+    reservations: buildAdminReservationReports(),
+    soldItems: buildAdminSoldItemReports(),
+    artists: buildAdminArtistReports(),
+    generatedCode: toTrimmedString(request.query.generatedCode),
+    artistRemoved: request.query.artistRemoved === "1",
+    artistRemoveError: toTrimmedString(request.query.artistRemoveError)
   });
 });
 
@@ -798,7 +868,36 @@ router.post("/admin/registration-codes", requireRole("admin"), (_request, respon
     createdByArtistId: currentArtist.id
   });
 
-  response.redirect(`/admin?generatedCode=${encodeURIComponent(registrationCode.code)}`);
+  redirectToAdmin(response, { generatedCode: registrationCode.code });
+});
+
+router.post("/admin/artists/:artistId/delete", requireRole("admin"), (request, response) => {
+  const artistId = parseId(request.params.artistId);
+  const artist = artistId ? findArtistById(artistId) : null;
+
+  if (!artist) {
+    redirectToAdmin(response, { artistRemoveError: "Artist account not found." });
+    return;
+  }
+
+  if (artist.role !== "artist") {
+    redirectToAdmin(response, { artistRemoveError: "Only artist accounts can be removed." });
+    return;
+  }
+
+  const itemPhotoPaths = listItemsByArtistId(artist.id).flatMap((item) =>
+    listItemPhotosByItemId(item.id).map((photo) => photo.path)
+  );
+  const uploadPaths = [artist.bannerPath, ...itemPhotoPaths];
+
+  const removed = deleteArtist(artist.id);
+  if (!removed) {
+    redirectToAdmin(response, { artistRemoveError: "Artist account could not be removed." });
+    return;
+  }
+
+  uploadPaths.forEach((path) => deleteStoredUpload(path));
+  redirectToAdmin(response, { artistRemoved: "1" });
 });
 
 export default router;

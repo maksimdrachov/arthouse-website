@@ -254,6 +254,10 @@ button:active,
   background: #ffffff;
 }
 
+.table-scroll {
+  overflow-x: auto;
+}
+
 .data-table th,
 .data-table td {
   border: 1px solid var(--border-dark);

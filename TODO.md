@@ -31,7 +31,7 @@
    If a customer places a reservation he should leave his contact info (telegram) and be asked to deposit x euro to y bank account to finalize the reservation.
    The payment should include the name of the item in the description.
 
-6. Admin reports
+6. [x] Admin reports
    Implement:
     - registration code generation
     - list reservations (admin should be able to see details of customer)

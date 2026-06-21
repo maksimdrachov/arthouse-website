@@ -9,6 +9,12 @@
       {% if generatedCode %}
         <div class="message message-info">Generated registration code: <strong>{{ generatedCode }}</strong></div>
       {% endif %}
+      {% if artistRemoved %}
+        <div class="message message-info">Artist account removed.</div>
+      {% endif %}
+      {% if artistRemoveError %}
+        <div class="message message-error">{{ artistRemoveError }}</div>
+      {% endif %}
 
       <form class="form-actions" action="/admin/registration-codes" method="post">
         <button type="submit">Generate registration code</button>
@@ -20,28 +26,168 @@
     <div class="window-title">Registration codes</div>
     <div class="window-body">
       {% if registrationCodes.length %}
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Code</th>
-              <th>Status</th>
-              <th>Created</th>
-              <th>Used by artist ID</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for code in registrationCodes %}
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead>
               <tr>
-                <td><code>{{ code.code }}</code></td>
-                <td>{% if code.usedAt %}Used{% else %}Unused{% endif %}</td>
-                <td>{{ code.createdAt }}</td>
-                <td>{{ code.usedByArtistId or "" }}</td>
+                <th>Code</th>
+                <th>Status</th>
+                <th>Created</th>
+                <th>Used by artist ID</th>
               </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {% for code in registrationCodes %}
+                <tr>
+                  <td><code>{{ code.code }}</code></td>
+                  <td>{% if code.usedAt %}Used{% else %}Unused{% endif %}</td>
+                  <td>{{ code.createdAt }}</td>
+                  <td>{{ code.usedByArtistId or "" }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
       {% else %}
         <p>No registration codes have been generated yet.</p>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="window">
+    <div class="window-title">Reservations</div>
+    <div class="window-body">
+      {% if reservations.length %}
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Reserved</th>
+                <th>Customer</th>
+                <th>Status</th>
+                <th>Item</th>
+                <th>Artist</th>
+                <th>Amount</th>
+                <th>Paid</th>
+                <th>Cancelled</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for reservation in reservations %}
+                <tr>
+                  <td>{{ reservation.reservedAt }}</td>
+                  <td>{{ reservation.customerTelegram or "No Telegram" }}</td>
+                  <td>{{ reservation.status }}</td>
+                  <td>
+                    {% if reservation.item %}
+                      <a href="/products/{{ reservation.item.id }}">{{ reservation.item.name }}</a>
+                    {% else %}
+                      Removed item #{{ reservation.itemId }}
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if reservation.artist %}
+                      <a href="/artists/{{ reservation.artist.slug }}">{{ reservation.artist.name }}</a>
+                    {% else %}
+                      Removed artist #{{ reservation.artistId }}
+                    {% endif %}
+                  </td>
+                  <td>{{ reservation.priceDisplay }}</td>
+                  <td>{{ reservation.paidAt or "" }}</td>
+                  <td>{{ reservation.cancelledAt or "" }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p>No reservations have been placed yet.</p>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="window">
+    <div class="window-title">Sold items</div>
+    <div class="window-body">
+      {% if soldItems.length %}
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Artist</th>
+                <th>Price</th>
+                <th>Created</th>
+                <th>Updated</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in soldItems %}
+                <tr>
+                  <td><a href="/products/{{ item.id }}">{{ item.name }}</a></td>
+                  <td>
+                    {% if item.artist %}
+                      <a href="/artists/{{ item.artist.slug }}">{{ item.artist.name }}</a>
+                    {% else %}
+                      Removed artist #{{ item.artistId }}
+                    {% endif %}
+                  </td>
+                  <td>{{ item.priceDisplay }}</td>
+                  <td>{{ item.createdAt }}</td>
+                  <td>{{ item.updatedAt }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p>No items are marked sold yet.</p>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="window">
+    <div class="window-title">Artists</div>
+    <div class="window-body">
+      {% if artists.length %}
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Store</th>
+                <th>Telegram</th>
+                <th>Instagram</th>
+                <th>Items</th>
+                <th>Reservations</th>
+                <th>Sold</th>
+                <th>Joined</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for listedArtist in artists %}
+                <tr>
+                  <td>{{ listedArtist.name }}</td>
+                  <td><a href="/artists/{{ listedArtist.slug }}">/{{ listedArtist.slug }}</a></td>
+                  <td>{{ listedArtist.telegram or "" }}</td>
+                  <td>{{ listedArtist.instagram or "" }}</td>
+                  <td>{{ listedArtist.itemCount }}</td>
+                  <td>{{ listedArtist.reservationCount }}</td>
+                  <td>{{ listedArtist.soldItemCount }}</td>
+                  <td>{{ listedArtist.createdAt }}</td>
+                  <td>
+                    <form class="inline-form" action="/admin/artists/{{ listedArtist.id }}/delete" method="post" onsubmit="return confirm('Remove this artist account and all of their items?');">
+                      <button class="link-button danger-link" type="submit">Remove</button>
+                    </form>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p>No artist accounts exist yet.</p>
       {% endif %}
     </div>
   </section>
