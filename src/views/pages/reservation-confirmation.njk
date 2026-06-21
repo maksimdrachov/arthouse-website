@@ -1,0 +1,62 @@
+{% extends "layouts/base.njk" %}
+
+{% block content %}
+  <section class="window">
+    <div class="window-title">Reservation placed</div>
+    <div class="window-body">
+      <div class="reserve-layout">
+        <div class="reserve-item-summary">
+          {% if primaryPhoto %}
+            <img class="reserve-photo" src="{{ primaryPhoto.path }}" alt="">
+          {% else %}
+            <div class="product-photo-empty">No photo</div>
+          {% endif %}
+
+          <h1>{{ item.name }}</h1>
+          <p><a href="/artists/{{ artist.slug }}">{{ artist.name }}</a></p>
+          <p class="product-price">{{ item.priceDisplay }}</p>
+          <p class="availability-label status-reserved">reserved</p>
+        </div>
+
+        <div class="reserve-panel">
+          <div class="message message-info">
+            Reservation #{{ reservation.id }} was recorded. Deposit the amount below to finalize it.
+          </div>
+
+          <div class="payment-box">
+            <h2>Payment details</h2>
+            <dl class="detail-list">
+              <div>
+                <dt>Amount</dt>
+                <dd>{{ item.priceDisplay }}</dd>
+              </div>
+              <div>
+                <dt>Bank account</dt>
+                <dd>{{ artist.bankAccount }}</dd>
+              </div>
+              <div>
+                <dt>Description</dt>
+                <dd>{{ paymentDescription }}</dd>
+              </div>
+              <div>
+                <dt>Your Telegram</dt>
+                <dd>{{ reservation.customerTelegram }}</dd>
+              </div>
+              {% if artist.telegram %}
+                <div>
+                  <dt>Artist Telegram</dt>
+                  <dd>{{ artist.telegram }}</dd>
+                </div>
+              {% endif %}
+            </dl>
+          </div>
+
+          <div class="form-actions">
+            <a class="button-link" href="/products/{{ item.id }}">Back to item</a>
+            <a href="/artists/{{ artist.slug }}">Artist store</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+{% endblock %}

@@ -203,6 +203,12 @@ button:active,
   border-style: inset;
 }
 
+.button-disabled {
+  border-style: inset;
+  color: #555555;
+  cursor: not-allowed;
+}
+
 .message {
   border: 2px solid var(--border-dark);
   margin: 0 0 14px;
@@ -590,6 +596,51 @@ h3 {
   background: #ffb0b0;
 }
 
+.reserve-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.8fr) minmax(280px, 1.2fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.reserve-item-summary {
+  display: grid;
+  gap: 8px;
+}
+
+.reserve-item-summary h1 {
+  margin-bottom: 0;
+}
+
+.reserve-item-summary p {
+  margin: 0;
+}
+
+.reserve-photo {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  border: 2px solid var(--border-dark);
+  background: #ffffff;
+  object-fit: cover;
+}
+
+.reserve-panel {
+  min-width: 0;
+}
+
+.payment-box {
+  border: 2px inset #d1d1d1;
+  background: #ffffff;
+  margin: 4px 0;
+  padding: 10px;
+}
+
+.payment-box h2 {
+  font-size: 20px;
+  margin: 0 0 10px;
+}
+
 code {
   font-family: "Courier New", Courier, monospace;
 }
@@ -629,7 +680,8 @@ code {
   }
 
   .artist-public-heading,
-  .product-layout {
+  .product-layout,
+  .reserve-layout {
     grid-template-columns: 1fr;
   }
 

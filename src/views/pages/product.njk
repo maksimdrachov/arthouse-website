@@ -32,7 +32,11 @@
           <p class="availability-label status-{{ item.availability }}">{{ item.availability }}</p>
           <p>{{ item.description }}</p>
 
-          <a class="button-link" href="/reserve/{{ item.id }}">Reserve</a>
+          {% if item.availability == "available" %}
+            <a class="button-link" href="/reserve/{{ item.id }}">Reserve</a>
+          {% else %}
+            <span class="button-link button-disabled">Reservation unavailable</span>
+          {% endif %}
         </div>
       </div>
     </div>

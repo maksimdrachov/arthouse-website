@@ -1,6 +1,6 @@
 # ArtHouse Development Instructions
 
-This repo is a small server-rendered Node.js application. It currently includes authentication, artist profile editing, artist item CRUD, upload handling, static asset wiring, a SQLite schema, and scripts needed for local development/deployment.
+This repo is a small server-rendered Node.js application. It currently includes authentication, artist profile editing, artist item CRUD, public storefront pages, reservation records, upload handling, static asset wiring, a SQLite schema, and scripts needed for local development/deployment.
 
 ## Stack
 
@@ -85,6 +85,7 @@ This repo is a small server-rendered Node.js application. It currently includes 
 - Public pages should live in `src/routes/public.ts` until they become large enough to split by domain.
 - The public home, artist, and product pages read from SQLite. Run `npm run seed:demo` to populate them from `assets/`.
 - `seed:demo` assigns grouped item photos from `assets/items` across the six banner artists using a stable shuffled seed. Set `DEMO_SEED` to change the assignment.
+- Public reservations are created from `/reserve/:itemId`. A reservation stores the customer's Telegram contact, marks the item `reserved`, and shows the customer the amount, artist bank account, and required payment description.
 - Registration, login, dashboard, artist profile editing, item CRUD, and admin pages currently live in `src/routes/private.ts`.
 - Use the repository exports from `src/db/index.ts` for database access instead of preparing SQL directly in route handlers.
 - Use the tables in `db/migrations/001_initial.sql` as the starting data model for artists, registration codes, items, item photos, and reservations.

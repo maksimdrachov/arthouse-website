@@ -26,7 +26,7 @@
     - artist store page
     - product page photo carousel
 
-5. Reservation flow
+5. [x] Reservation flow
    Add reserve page behavior and reservation records. This should come after product pages exist.
    If a customer places a reservation he should leave his contact info (telegram) and be asked to deposit x euro to y bank account to finalize the reservation.
    The payment should include the name of the item in the description.

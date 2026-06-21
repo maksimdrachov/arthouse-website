@@ -1,0 +1,70 @@
+{% extends "layouts/base.njk" %}
+
+{% block content %}
+  <section class="window">
+    <div class="window-title">Reserve {{ item.name }}</div>
+    <div class="window-body">
+      <div class="reserve-layout">
+        <div class="reserve-item-summary">
+          {% if primaryPhoto %}
+            <img class="reserve-photo" src="{{ primaryPhoto.path }}" alt="">
+          {% else %}
+            <div class="product-photo-empty">No photo</div>
+          {% endif %}
+
+          <h1>{{ item.name }}</h1>
+          <p><a href="/artists/{{ artist.slug }}">{{ artist.name }}</a></p>
+          <p class="product-price">{{ item.priceDisplay }}</p>
+          <p class="availability-label status-{{ item.availability }}">{{ item.availability }}</p>
+        </div>
+
+        <div class="reserve-panel">
+          {% if errors.length %}
+            <div class="message message-error" role="alert">
+              <ul>
+                {% for error in errors %}
+                  <li>{{ error }}</li>
+                {% endfor %}
+              </ul>
+            </div>
+          {% endif %}
+
+          {% if canReserve %}
+            <form class="form-grid" action="/reserve/{{ item.id }}" method="post">
+              <label class="form-row">
+                <span>Telegram contact</span>
+                <input name="customerTelegram" value="{{ values.customerTelegram }}" autocomplete="off" required>
+              </label>
+
+              <div class="payment-box">
+                <h2>Payment details</h2>
+                <dl class="detail-list">
+                  <div>
+                    <dt>Amount</dt>
+                    <dd>{{ item.priceDisplay }}</dd>
+                  </div>
+                  <div>
+                    <dt>Bank account</dt>
+                    <dd>{{ artist.bankAccount }}</dd>
+                  </div>
+                  <div>
+                    <dt>Description</dt>
+                    <dd>{{ paymentDescription }}</dd>
+                  </div>
+                </dl>
+              </div>
+
+              <div class="form-actions">
+                <button type="submit">Place reservation</button>
+                <a href="/products/{{ item.id }}">Back to item</a>
+              </div>
+            </form>
+          {% else %}
+            <div class="message message-info">This item is not available for reservation.</div>
+            <p><a href="/products/{{ item.id }}">Back to item</a></p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </section>
+{% endblock %}
