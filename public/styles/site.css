@@ -1,0 +1,138 @@
+:root {
+  color-scheme: light;
+  --page: #d9d0b6;
+  --panel: #fff8dc;
+  --panel-dark: #1f4f7a;
+  --border-dark: #212121;
+  --border-light: #ffffff;
+  --ink: #181818;
+  --link: #0000cc;
+  --visited: #663399;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    linear-gradient(45deg, rgba(255, 255, 255, 0.28) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(255, 255, 255, 0.28) 25%, transparent 25%),
+    var(--page);
+  background-size: 16px 16px;
+  color: var(--ink);
+  font-family: Verdana, Arial, Helvetica, sans-serif;
+  font-size: 14px;
+}
+
+a {
+  color: var(--link);
+}
+
+a:visited {
+  color: var(--visited);
+}
+
+.page-shell {
+  width: min(960px, calc(100% - 24px));
+  margin: 0 auto;
+  padding: 16px 0 24px;
+}
+
+.site-header,
+.site-footer,
+.window {
+  border: 2px solid var(--border-dark);
+  box-shadow: inset 2px 2px 0 var(--border-light), inset -2px -2px 0 #777;
+  background: var(--panel);
+}
+
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 12px;
+}
+
+.site-logo {
+  color: #d60000;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 28px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.site-logo:visited {
+  color: #d60000;
+}
+
+.site-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.site-main {
+  display: grid;
+  gap: 16px;
+  padding: 16px 0;
+}
+
+.site-footer {
+  padding: 8px 12px;
+  text-align: center;
+  font-size: 12px;
+}
+
+.window-title {
+  border-bottom: 2px solid var(--border-dark);
+  background: var(--panel-dark);
+  color: #ffffff;
+  font-weight: 700;
+  padding: 5px 8px;
+}
+
+.window-body {
+  padding: 14px;
+}
+
+h1 {
+  margin: 0 0 10px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 32px;
+  line-height: 1.1;
+}
+
+p {
+  max-width: 68ch;
+  line-height: 1.5;
+}
+
+.route-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.link-list {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.link-list li + li {
+  margin-top: 8px;
+}
+
+@media (max-width: 640px) {
+  .site-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .route-grid {
+    grid-template-columns: 1fr;
+  }
+}

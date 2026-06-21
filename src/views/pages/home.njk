@@ -1,0 +1,35 @@
+{% extends "layouts/base.njk" %}
+
+{% block content %}
+  <section class="window">
+    <div class="window-title">Setup</div>
+    <div class="window-body">
+      <h1>ArtHouse Website</h1>
+      <p>This is the server scaffold for the artist collective storefront.</p>
+    </div>
+  </section>
+
+  <section class="route-grid" aria-label="Scaffolded routes">
+    <div class="window">
+      <div class="window-title">Public</div>
+      <div class="window-body">
+        <ul class="link-list">
+          {% for route in publicRoutes %}
+            <li><a href="{{ route.href }}">{{ route.label }}</a></li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+
+    <div class="window">
+      <div class="window-title">Private</div>
+      <div class="window-body">
+        <ul class="link-list">
+          {% for route in privateRoutes %}
+            <li><a href="{{ route.href }}">{{ route.label }}</a></li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </section>
+{% endblock %}

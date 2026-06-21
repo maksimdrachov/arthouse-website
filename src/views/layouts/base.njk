@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ title }} | ArtHouse</title>
+    <link rel="stylesheet" href="/styles/site.css">
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="site-header">
+        <a class="site-logo" href="/">ArtHouse</a>
+        <nav class="site-nav" aria-label="Primary">
+          <a href="/">Home</a>
+          <a href="/register">Register</a>
+          <a href="/login">Login</a>
+        </nav>
+      </header>
+
+      <main class="site-main">
+        {% block content %}{% endblock %}
+      </main>
+
+      <footer class="site-footer">
+        Collective storefront scaffold
+      </footer>
+    </div>
+  </body>
+</html>
