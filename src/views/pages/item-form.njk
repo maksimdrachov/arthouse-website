@@ -1,0 +1,87 @@
+{% extends "layouts/base.njk" %}
+
+{% block content %}
+  <section class="window">
+    <div class="window-title">{% if mode == "new" %}Add item{% else %}Edit item{% endif %}</div>
+    <div class="window-body">
+      <h1>{% if mode == "new" %}Add item{% else %}Edit item{% endif %}</h1>
+
+      {% if errors.length %}
+        <div class="message message-error" role="alert">
+          <ul>
+            {% for error in errors %}
+              <li>{{ error }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+
+      <form class="form-grid" action="{% if mode == "new" %}/dashboard/items{% else %}/dashboard/items/{{ item.id }}{% endif %}" method="post" enctype="multipart/form-data">
+        <label class="form-row">
+          <span>Name</span>
+          <input name="name" value="{{ values.name }}" required>
+        </label>
+
+        <div class="form-two-columns">
+          <label class="form-row">
+            <span>Price</span>
+            <input name="price" value="{{ values.price }}" inputmode="decimal" required>
+          </label>
+
+          <label class="form-row">
+            <span>Currency</span>
+            <input name="currency" value="{{ values.currency }}" maxlength="3" required>
+          </label>
+        </div>
+
+        <label class="form-row">
+          <span>Description</span>
+          <textarea name="description" rows="5">{{ values.description }}</textarea>
+        </label>
+
+        <label class="form-row">
+          <span>Availability</span>
+          <select name="availability">
+            {% for option in availabilityOptions %}
+              <option value="{{ option }}" {% if option == values.availability %}selected{% endif %}>{{ option | capitalize }}</option>
+            {% endfor %}
+          </select>
+        </label>
+
+        <label class="form-row">
+          <span>Photos</span>
+          <input name="photos" type="file" accept="image/jpeg,image/png,image/gif,image/webp" multiple>
+        </label>
+
+        <div class="form-actions">
+          <button type="submit">{% if mode == "new" %}Add item{% else %}Save item{% endif %}</button>
+          <a href="/dashboard">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  {% if mode == "edit" %}
+    <section class="window">
+      <div class="window-title">Photos</div>
+      <div class="window-body">
+        {% if photos.length %}
+          <div class="photo-admin-grid">
+            {% for photo in photos %}
+              <figure class="photo-admin-card">
+                <img src="{{ photo.path }}" alt="">
+                <figcaption>
+                  <form action="/dashboard/items/{{ item.id }}/photos/{{ photo.id }}/delete" method="post" onsubmit="return confirm('Remove this photo?');">
+                    <button class="link-button danger-link" type="submit">Remove photo</button>
+                  </form>
+                </figcaption>
+              </figure>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p>No photos yet.</p>
+        {% endif %}
+      </div>
+    </section>
+  {% endif %}
+{% endblock %}

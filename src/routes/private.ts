@@ -1,23 +1,42 @@
 import { randomInt } from "node:crypto";
 
 import { Router } from "express";
-import type { Response } from "express";
+import type { Request, RequestHandler, Response } from "express";
 
 import { hashPassword, verifyPassword } from "../auth/passwords.js";
-import { getCurrentArtist, requireAuth, requireRole, signIn, signOut } from "../auth/session.js";
+import { requireAuth, requireRole, signIn, signOut } from "../auth/session.js";
 import {
   createArtist,
+  createItem,
+  createItemPhoto,
   createRegistrationCode,
+  deleteItem,
+  deleteItemPhoto,
   findArtistByLoginIdentifier,
+  findItemByArtistAndSlug,
+  findItemById,
+  findItemPhotoById,
   findRegistrationCode,
+  listItemPhotosByItemId,
+  listItemsByArtistId,
   listRegistrationCodes,
   markRegistrationCodeUsed,
-  runInTransaction
+  runInTransaction,
+  updateArtist,
+  updateItem
 } from "../db/index.js";
-import type { Artist } from "../db/index.js";
-import { createUniqueArtistSlug } from "../utils/slug.js";
+import type { Artist, Item, ItemAvailability, ItemPhoto } from "../db/index.js";
+import {
+  deleteStoredUpload,
+  deleteUploadedFiles,
+  storedUploadPath,
+  uploadImages
+} from "../uploads.js";
+import { createUniqueArtistSlug, slugify } from "../utils/slug.js";
 
 const router = Router();
+
+const availabilityOptions: ItemAvailability[] = ["available", "reserved", "sold"];
 
 interface RegisterFormValues {
   registrationCode: string;
@@ -31,6 +50,27 @@ interface RegisterFormValues {
 interface LoginFormValues {
   identifier: string;
   next: string;
+}
+
+interface ProfileFormValues {
+  name: string;
+  bankAccount: string;
+  about: string;
+  telegram: string;
+  instagram: string;
+}
+
+interface ItemFormValues {
+  name: string;
+  price: string;
+  currency: string;
+  description: string;
+  availability: ItemAvailability;
+}
+
+interface DashboardItemView extends Item {
+  priceDisplay: string;
+  primaryPhoto: ItemPhoto | null;
 }
 
 const toTrimmedString = (value: unknown): string => {
@@ -49,6 +89,31 @@ const normalizeNextPath = (next: string): string => {
   return next;
 };
 
+const parseId = (value: unknown): number | null => {
+  const parsed = Number.parseInt(toTrimmedString(value), 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+};
+
+const isItemAvailability = (value: string): value is ItemAvailability => {
+  return availabilityOptions.includes(value as ItemAvailability);
+};
+
+const formatPrice = (priceCents: number, currency: string): string => {
+  return `${(priceCents / 100).toFixed(2)} ${currency}`;
+};
+
+const formatPriceInput = (priceCents: number): string => {
+  return (priceCents / 100).toFixed(2);
+};
+
+const parsePriceCents = (value: string): number | null => {
+  if (!/^\d+(\.\d{1,2})?$/.test(value)) {
+    return null;
+  }
+
+  return Math.round(Number.parseFloat(value) * 100);
+};
+
 const createSixDigitRegistrationCode = (): string => {
   for (let attempt = 0; attempt < 30; attempt += 1) {
     const code = randomInt(0, 1_000_000).toString().padStart(6, "0");
@@ -60,6 +125,68 @@ const createSixDigitRegistrationCode = (): string => {
   throw new Error("Could not generate a unique registration code.");
 };
 
+const createUniqueItemSlug = (artistId: number, name: string): string => {
+  const baseSlug = slugify(name);
+  let slug = baseSlug;
+  let suffix = 2;
+
+  while (findItemByArtistAndSlug(artistId, slug)) {
+    slug = `${baseSlug}-${suffix}`;
+    suffix += 1;
+  }
+
+  return slug;
+};
+
+const getCurrentArtistOrRedirect = (response: Response): Artist | null => {
+  const currentArtist = response.locals.currentArtist;
+
+  if (!currentArtist) {
+    response.redirect("/login");
+    return null;
+  }
+
+  return currentArtist;
+};
+
+const getArtistItemOr404 = (response: Response, artistId: number, itemId: number): Item | null => {
+  const item = findItemById(itemId);
+
+  if (!item || item.artistId !== artistId) {
+    response.status(404).render("pages/not-found.njk", {
+      title: "Item not found"
+    });
+    return null;
+  }
+
+  return item;
+};
+
+const runUpload = (request: Request, response: Response, middleware: RequestHandler): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    middleware(request, response, (error) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+
+      resolve();
+    });
+  });
+};
+
+const uploadedArray = (request: Request): Express.Multer.File[] => {
+  if (Array.isArray(request.files)) {
+    return request.files;
+  }
+
+  if (!request.files) {
+    return [];
+  }
+
+  return Object.values(request.files).flat();
+};
+
 const renderRegister = (
   response: Response,
   values: RegisterFormValues,
@@ -69,6 +196,50 @@ const renderRegister = (
     title: "Artist registration",
     values,
     errors
+  });
+};
+
+const renderProfileForm = (
+  response: Response,
+  artist: Artist,
+  values: ProfileFormValues,
+  errors: string[] = []
+): void => {
+  response.status(errors.length > 0 ? 400 : 200).render("pages/profile-edit.njk", {
+    title: "Edit profile",
+    artist,
+    values,
+    errors
+  });
+};
+
+const renderItemForm = (
+  response: Response,
+  options: {
+    mode: "new" | "edit";
+    item: Item | null;
+    photos: ItemPhoto[];
+    values: ItemFormValues;
+    errors?: string[];
+  }
+): void => {
+  response.status(options.errors?.length ? 400 : 200).render("pages/item-form.njk", {
+    title: options.mode === "new" ? "Add item" : "Edit item",
+    availabilityOptions,
+    ...options,
+    errors: options.errors ?? []
+  });
+};
+
+const buildDashboardItems = (artistId: number): DashboardItemView[] => {
+  return listItemsByArtistId(artistId).map((item) => {
+    const photos = listItemPhotosByItemId(item.id);
+
+    return {
+      ...item,
+      priceDisplay: formatPrice(item.priceCents, item.currency),
+      primaryPhoto: photos[0] ?? null
+    };
   });
 };
 
@@ -209,19 +380,406 @@ router.post("/logout", requireAuth, async (request, response) => {
   response.redirect("/login?loggedOut=1");
 });
 
-router.get("/dashboard", requireAuth, (_request, response) => {
-  const currentArtist = response.locals.currentArtist;
-
+router.get("/dashboard", requireAuth, (request, response) => {
+  const currentArtist = getCurrentArtistOrRedirect(response);
   if (!currentArtist) {
-    response.redirect("/login");
     return;
   }
 
   response.render("pages/dashboard.njk", {
     title: "Artist dashboard",
     artist: currentArtist,
-    registered: _request.query.registered === "1"
+    items: buildDashboardItems(currentArtist.id),
+    registered: request.query.registered === "1",
+    profileUpdated: request.query.profileUpdated === "1",
+    itemCreated: request.query.itemCreated === "1",
+    itemUpdated: request.query.itemUpdated === "1",
+    itemDeleted: request.query.itemDeleted === "1"
   });
+});
+
+router.get("/dashboard/profile/edit", requireAuth, (_request, response) => {
+  const currentArtist = getCurrentArtistOrRedirect(response);
+  if (!currentArtist) {
+    return;
+  }
+
+  renderProfileForm(response, currentArtist, {
+    name: currentArtist.name,
+    bankAccount: currentArtist.bankAccount,
+    about: currentArtist.about ?? "",
+    telegram: currentArtist.telegram ?? "",
+    instagram: currentArtist.instagram ?? ""
+  });
+});
+
+router.post("/dashboard/profile", requireAuth, async (request, response) => {
+  const currentArtist = getCurrentArtistOrRedirect(response);
+  if (!currentArtist) {
+    return;
+  }
+
+  try {
+    await runUpload(request, response, uploadImages.single("banner"));
+  } catch (error) {
+    renderProfileForm(
+      response,
+      currentArtist,
+      {
+        name: toTrimmedString(request.body.name),
+        bankAccount: toTrimmedString(request.body.bankAccount),
+        about: toTrimmedString(request.body.about),
+        telegram: toTrimmedString(request.body.telegram),
+        instagram: toTrimmedString(request.body.instagram)
+      },
+      [(error as Error).message]
+    );
+    return;
+  }
+
+  const uploadedBanner = request.file;
+  const values: ProfileFormValues = {
+    name: toTrimmedString(request.body.name),
+    bankAccount: toTrimmedString(request.body.bankAccount),
+    about: toTrimmedString(request.body.about),
+    telegram: toTrimmedString(request.body.telegram),
+    instagram: toTrimmedString(request.body.instagram)
+  };
+  const newPassword = toTrimmedString(request.body.password);
+  const errors: string[] = [];
+
+  if (values.name.length < 2) {
+    errors.push("Artist name is required.");
+  }
+
+  if (values.bankAccount.length === 0) {
+    errors.push("Bank account is required.");
+  }
+
+  if (newPassword.length > 0 && newPassword.length < 8) {
+    errors.push("New password must be at least 8 characters.");
+  }
+
+  if (errors.length > 0) {
+    if (uploadedBanner) {
+      deleteUploadedFiles([uploadedBanner]);
+    }
+
+    renderProfileForm(response, currentArtist, values, errors);
+    return;
+  }
+
+  const passwordHash = newPassword ? await hashPassword(newPassword) : undefined;
+  const bannerPath = uploadedBanner ? storedUploadPath(uploadedBanner) : undefined;
+
+  updateArtist(currentArtist.id, {
+    name: values.name,
+    bankAccount: values.bankAccount,
+    about: toNullableString(values.about),
+    telegram: toNullableString(values.telegram),
+    instagram: toNullableString(values.instagram),
+    passwordHash,
+    bannerPath
+  });
+
+  if (uploadedBanner && currentArtist.bannerPath) {
+    deleteStoredUpload(currentArtist.bannerPath);
+  }
+
+  response.redirect("/dashboard?profileUpdated=1");
+});
+
+router.get("/dashboard/items/new", requireAuth, (_request, response) => {
+  renderItemForm(response, {
+    mode: "new",
+    item: null,
+    photos: [],
+    values: {
+      name: "",
+      price: "",
+      currency: "EUR",
+      description: "",
+      availability: "available"
+    }
+  });
+});
+
+router.post("/dashboard/items", requireAuth, async (request, response) => {
+  const currentArtist = getCurrentArtistOrRedirect(response);
+  if (!currentArtist) {
+    return;
+  }
+
+  try {
+    await runUpload(request, response, uploadImages.array("photos", 12));
+  } catch (error) {
+    renderItemForm(response, {
+      mode: "new",
+      item: null,
+      photos: [],
+      values: {
+        name: toTrimmedString(request.body.name),
+        price: toTrimmedString(request.body.price),
+        currency: toTrimmedString(request.body.currency) || "EUR",
+        description: toTrimmedString(request.body.description),
+        availability: "available"
+      },
+      errors: [(error as Error).message]
+    });
+    return;
+  }
+
+  const uploadedPhotos = uploadedArray(request);
+  const availability = toTrimmedString(request.body.availability);
+  const values: ItemFormValues = {
+    name: toTrimmedString(request.body.name),
+    price: toTrimmedString(request.body.price),
+    currency: (toTrimmedString(request.body.currency) || "EUR").toUpperCase(),
+    description: toTrimmedString(request.body.description),
+    availability: isItemAvailability(availability) ? availability : "available"
+  };
+  const priceCents = parsePriceCents(values.price);
+  const errors: string[] = [];
+
+  if (values.name.length === 0) {
+    errors.push("Item name is required.");
+  }
+
+  if (priceCents === null) {
+    errors.push("Price must be a number with up to two decimal places.");
+  }
+
+  if (!/^[A-Z]{3}$/.test(values.currency)) {
+    errors.push("Currency must be a 3-letter code.");
+  }
+
+  if (!isItemAvailability(availability)) {
+    errors.push("Availability is invalid.");
+  }
+
+  if (errors.length > 0 || priceCents === null) {
+    deleteUploadedFiles(uploadedPhotos);
+    renderItemForm(response, {
+      mode: "new",
+      item: null,
+      photos: [],
+      values,
+      errors
+    });
+    return;
+  }
+
+  try {
+    runInTransaction(() => {
+      const item = createItem({
+        artistId: currentArtist.id,
+        slug: createUniqueItemSlug(currentArtist.id, values.name),
+        name: values.name,
+        priceCents,
+        currency: values.currency,
+        description: values.description,
+        availability: values.availability
+      });
+
+      uploadedPhotos.forEach((photo, index) => {
+        createItemPhoto({
+          itemId: item.id,
+          path: storedUploadPath(photo),
+          sortOrder: index
+        });
+      });
+    });
+  } catch (error) {
+    deleteUploadedFiles(uploadedPhotos);
+    throw error;
+  }
+
+  response.redirect("/dashboard?itemCreated=1");
+});
+
+router.get("/dashboard/items/:itemId/edit", requireAuth, (request, response) => {
+  const currentArtist = getCurrentArtistOrRedirect(response);
+  if (!currentArtist) {
+    return;
+  }
+
+  const itemId = parseId(request.params.itemId);
+  const item = itemId ? getArtistItemOr404(response, currentArtist.id, itemId) : null;
+  if (!item) {
+    return;
+  }
+
+  renderItemForm(response, {
+    mode: "edit",
+    item,
+    photos: listItemPhotosByItemId(item.id),
+    values: {
+      name: item.name,
+      price: formatPriceInput(item.priceCents),
+      currency: item.currency,
+      description: item.description,
+      availability: item.availability
+    }
+  });
+});
+
+router.post("/dashboard/items/:itemId", requireAuth, async (request, response) => {
+  const currentArtist = getCurrentArtistOrRedirect(response);
+  if (!currentArtist) {
+    return;
+  }
+
+  const itemId = parseId(request.params.itemId);
+  const item = itemId ? getArtistItemOr404(response, currentArtist.id, itemId) : null;
+  if (!item) {
+    return;
+  }
+
+  try {
+    await runUpload(request, response, uploadImages.array("photos", 12));
+  } catch (error) {
+    renderItemForm(response, {
+      mode: "edit",
+      item,
+      photos: listItemPhotosByItemId(item.id),
+      values: {
+        name: toTrimmedString(request.body.name),
+        price: toTrimmedString(request.body.price),
+        currency: toTrimmedString(request.body.currency) || "EUR",
+        description: toTrimmedString(request.body.description),
+        availability: item.availability
+      },
+      errors: [(error as Error).message]
+    });
+    return;
+  }
+
+  const uploadedPhotos = uploadedArray(request);
+  const availability = toTrimmedString(request.body.availability);
+  const values: ItemFormValues = {
+    name: toTrimmedString(request.body.name),
+    price: toTrimmedString(request.body.price),
+    currency: (toTrimmedString(request.body.currency) || "EUR").toUpperCase(),
+    description: toTrimmedString(request.body.description),
+    availability: isItemAvailability(availability) ? availability : item.availability
+  };
+  const priceCents = parsePriceCents(values.price);
+  const errors: string[] = [];
+
+  if (values.name.length === 0) {
+    errors.push("Item name is required.");
+  }
+
+  if (priceCents === null) {
+    errors.push("Price must be a number with up to two decimal places.");
+  }
+
+  if (!/^[A-Z]{3}$/.test(values.currency)) {
+    errors.push("Currency must be a 3-letter code.");
+  }
+
+  if (!isItemAvailability(availability)) {
+    errors.push("Availability is invalid.");
+  }
+
+  if (errors.length > 0 || priceCents === null) {
+    deleteUploadedFiles(uploadedPhotos);
+    renderItemForm(response, {
+      mode: "edit",
+      item,
+      photos: listItemPhotosByItemId(item.id),
+      values,
+      errors
+    });
+    return;
+  }
+
+  try {
+    runInTransaction(() => {
+      updateItem(item.id, {
+        name: values.name,
+        priceCents,
+        currency: values.currency,
+        description: values.description,
+        availability: values.availability
+      });
+
+      const existingPhotoCount = listItemPhotosByItemId(item.id).length;
+      uploadedPhotos.forEach((photo, index) => {
+        createItemPhoto({
+          itemId: item.id,
+          path: storedUploadPath(photo),
+          sortOrder: existingPhotoCount + index
+        });
+      });
+    });
+  } catch (error) {
+    deleteUploadedFiles(uploadedPhotos);
+    throw error;
+  }
+
+  response.redirect("/dashboard?itemUpdated=1");
+});
+
+router.post("/dashboard/items/:itemId/availability", requireAuth, (request, response) => {
+  const currentArtist = getCurrentArtistOrRedirect(response);
+  if (!currentArtist) {
+    return;
+  }
+
+  const itemId = parseId(request.params.itemId);
+  const item = itemId ? getArtistItemOr404(response, currentArtist.id, itemId) : null;
+  if (!item) {
+    return;
+  }
+
+  const availability = toTrimmedString(request.body.availability);
+  if (isItemAvailability(availability)) {
+    updateItem(item.id, { availability });
+  }
+
+  response.redirect("/dashboard?itemUpdated=1");
+});
+
+router.post("/dashboard/items/:itemId/photos/:photoId/delete", requireAuth, (request, response) => {
+  const currentArtist = getCurrentArtistOrRedirect(response);
+  if (!currentArtist) {
+    return;
+  }
+
+  const itemId = parseId(request.params.itemId);
+  const photoId = parseId(request.params.photoId);
+  const item = itemId ? getArtistItemOr404(response, currentArtist.id, itemId) : null;
+  const photo = photoId ? findItemPhotoById(photoId) : null;
+
+  if (!item || !photo || photo.itemId !== item.id) {
+    response.status(404).render("pages/not-found.njk", {
+      title: "Photo not found"
+    });
+    return;
+  }
+
+  deleteItemPhoto(photo.id);
+  deleteStoredUpload(photo.path);
+  response.redirect(`/dashboard/items/${item.id}/edit`);
+});
+
+router.post("/dashboard/items/:itemId/delete", requireAuth, (request, response) => {
+  const currentArtist = getCurrentArtistOrRedirect(response);
+  if (!currentArtist) {
+    return;
+  }
+
+  const itemId = parseId(request.params.itemId);
+  const item = itemId ? getArtistItemOr404(response, currentArtist.id, itemId) : null;
+  if (!item) {
+    return;
+  }
+
+  const photos = listItemPhotosByItemId(item.id);
+  deleteItem(item.id);
+  photos.forEach((photo) => deleteStoredUpload(photo.path));
+  response.redirect("/dashboard?itemDeleted=1");
 });
 
 router.get("/admin", requireRole("admin"), (request, response) => {

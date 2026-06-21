@@ -2,34 +2,52 @@
 
 {% block content %}
   <section class="window">
-    <div class="window-title">Setup</div>
+    <div class="window-title">New arrivals</div>
     <div class="window-body">
-      <h1>ArtHouse Website</h1>
-      <p>This is the server scaffold for the artist collective storefront.</p>
+      <h1>ArtHouse</h1>
+
+      {% if items.length %}
+        <div class="public-item-grid public-item-grid-home">
+          {% for item in items %}
+            <a class="public-item-card" href="/products/{{ item.id }}">
+              <span class="public-item-photo">
+                {% if item.primaryPhoto %}
+                  <img src="{{ item.primaryPhoto.path }}" alt="">
+                {% else %}
+                  <span>No photo</span>
+                {% endif %}
+              </span>
+              <span class="public-item-name">{{ item.name }}</span>
+              {% if item.artist %}
+                <span class="public-item-artist">{{ item.artist.name }}</span>
+              {% endif %}
+              <span class="public-item-price">{{ item.priceDisplay }}</span>
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p>No items are available yet. Seed demo data with <code>npm run seed:demo</code>.</p>
+      {% endif %}
     </div>
   </section>
 
-  <section class="route-grid" aria-label="Scaffolded routes">
-    <div class="window">
-      <div class="window-title">Public</div>
-      <div class="window-body">
-        <ul class="link-list">
-          {% for route in publicRoutes %}
-            <li><a href="{{ route.href }}">{{ route.label }}</a></li>
+  <section class="window">
+    <div class="window-title">Artist stores</div>
+    <div class="window-body">
+      {% if artists.length %}
+        <div class="artist-banner-list">
+          {% for artist in artists %}
+            <a class="artist-banner-link" href="/artists/{{ artist.slug }}">
+              {% if artist.bannerPath %}
+                <img src="{{ artist.bannerPath }}" alt="">
+              {% endif %}
+              <span>{{ artist.name }}</span>
+            </a>
           {% endfor %}
-        </ul>
-      </div>
-    </div>
-
-    <div class="window">
-      <div class="window-title">Private</div>
-      <div class="window-body">
-        <ul class="link-list">
-          {% for route in privateRoutes %}
-            <li><a href="{{ route.href }}">{{ route.label }}</a></li>
-          {% endfor %}
-        </ul>
-      </div>
+        </div>
+      {% else %}
+        <p>No artist stores are available yet.</p>
+      {% endif %}
     </div>
   </section>
 {% endblock %}

@@ -1,0 +1,44 @@
+{% extends "layouts/base.njk" %}
+
+{% block content %}
+  <section class="window">
+    <div class="window-title">{{ item.name }}</div>
+    <div class="window-body">
+      <div class="product-layout">
+        <div class="product-media" data-carousel>
+          {% if photos.length %}
+            <div class="product-photo-stage">
+              {% for photo in photos %}
+                <img class="product-photo {% if loop.first %}is-active{% endif %}" src="{{ photo.path }}" alt="" data-carousel-slide>
+              {% endfor %}
+            </div>
+
+            {% if photos.length > 1 %}
+              <div class="product-carousel-controls">
+                <button type="button" title="Previous photo" data-carousel-prev>&larr;</button>
+                <span data-carousel-count>1 / {{ photos.length }}</span>
+                <button type="button" title="Next photo" data-carousel-next>&rarr;</button>
+              </div>
+            {% endif %}
+          {% else %}
+            <div class="product-photo-empty">No photo</div>
+          {% endif %}
+        </div>
+
+        <div class="product-details">
+          <h1>{{ item.name }}</h1>
+          <p class="product-artist"><a href="/artists/{{ artist.slug }}">{{ artist.name }}</a></p>
+          <p class="product-price">{{ item.priceDisplay }}</p>
+          <p class="availability-label status-{{ item.availability }}">{{ item.availability }}</p>
+          <p>{{ item.description }}</p>
+
+          <a class="button-link" href="/reserve/{{ item.id }}">Reserve</a>
+        </div>
+      </div>
+    </div>
+  </section>
+{% endblock %}
+
+{% block scripts %}
+  <script src="/scripts/product-carousel.js"></script>
+{% endblock %}

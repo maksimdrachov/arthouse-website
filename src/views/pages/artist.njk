@@ -1,0 +1,49 @@
+{% extends "layouts/base.njk" %}
+
+{% block content %}
+  <section class="window">
+    <div class="window-title">{{ artist.name }}</div>
+    <div class="window-body">
+      {% if artist.bannerPath %}
+        <img class="public-artist-banner" src="{{ artist.bannerPath }}" alt="">
+      {% endif %}
+
+      <div class="artist-public-heading">
+        <h1>{{ artist.name }}</h1>
+        {% if artist.instagram %}
+          <a href="https://instagram.com/{{ artist.instagram }}" rel="noreferrer">Instagram</a>
+        {% endif %}
+      </div>
+
+      {% if artist.about %}
+        <p>{{ artist.about }}</p>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="window">
+    <div class="window-title">Store items</div>
+    <div class="window-body">
+      {% if items.length %}
+        <div class="public-item-grid">
+          {% for item in items %}
+            <a class="public-item-card" href="/products/{{ item.id }}">
+              <span class="public-item-photo">
+                {% if item.primaryPhoto %}
+                  <img src="{{ item.primaryPhoto.path }}" alt="">
+                {% else %}
+                  <span>No photo</span>
+                {% endif %}
+              </span>
+              <span class="public-item-name">{{ item.name }}</span>
+              <span class="public-item-status status-{{ item.availability }}">{{ item.availability }}</span>
+              <span class="public-item-price">{{ item.priceDisplay }}</span>
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p>This artist has not added any items yet.</p>
+      {% endif %}
+    </div>
+  </section>
+{% endblock %}

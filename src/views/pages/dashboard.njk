@@ -4,10 +4,29 @@
   <section class="window">
     <div class="window-title">Artist dashboard</div>
     <div class="window-body">
-      <h1>{{ artist.name }}</h1>
+      <div class="section-heading">
+        <h1>{{ artist.name }}</h1>
+        <a class="button-link" href="/dashboard/profile/edit">Edit profile</a>
+      </div>
 
       {% if registered %}
         <div class="message message-info">Account created. You are logged in.</div>
+      {% endif %}
+      {% if profileUpdated %}
+        <div class="message message-info">Profile updated.</div>
+      {% endif %}
+      {% if itemCreated %}
+        <div class="message message-info">Item added.</div>
+      {% endif %}
+      {% if itemUpdated %}
+        <div class="message message-info">Item updated.</div>
+      {% endif %}
+      {% if itemDeleted %}
+        <div class="message message-info">Item removed.</div>
+      {% endif %}
+
+      {% if artist.bannerPath %}
+        <img class="profile-banner" src="{{ artist.bannerPath }}" alt="">
       {% endif %}
 
       <dl class="detail-list">
@@ -35,9 +54,65 @@
             <dd>{{ artist.instagram }}</dd>
           </div>
         {% endif %}
+        {% if artist.about %}
+          <div>
+            <dt>About</dt>
+            <dd>{{ artist.about }}</dd>
+          </div>
+        {% endif %}
       </dl>
+    </div>
+  </section>
 
-      <p>Profile editing and item management will be implemented in step 3.</p>
+  <section class="window">
+    <div class="window-title">Items</div>
+    <div class="window-body">
+      <div class="section-heading">
+        <h2>Store items</h2>
+        <a class="button-link" href="/dashboard/items/new">Add item</a>
+      </div>
+
+      {% if items.length %}
+        <div class="item-admin-grid">
+          {% for item in items %}
+            <article class="item-admin-card">
+              <div class="item-admin-photo">
+                {% if item.primaryPhoto %}
+                  <img src="{{ item.primaryPhoto.path }}" alt="">
+                {% else %}
+                  <span>No photo</span>
+                {% endif %}
+              </div>
+
+              <div class="item-admin-body">
+                <h3>{{ item.name }}</h3>
+                <p>{{ item.priceDisplay }}</p>
+
+                <form class="compact-form" action="/dashboard/items/{{ item.id }}/availability" method="post">
+                  <label>
+                    <span>Availability</span>
+                    <select name="availability">
+                      <option value="available" {% if item.availability == "available" %}selected{% endif %}>Available</option>
+                      <option value="reserved" {% if item.availability == "reserved" %}selected{% endif %}>Reserved</option>
+                      <option value="sold" {% if item.availability == "sold" %}selected{% endif %}>Sold</option>
+                    </select>
+                  </label>
+                  <button type="submit">Update</button>
+                </form>
+
+                <div class="item-actions">
+                  <a href="/dashboard/items/{{ item.id }}/edit">Edit</a>
+                  <form class="inline-form" action="/dashboard/items/{{ item.id }}/delete" method="post" onsubmit="return confirm('Remove this item?');">
+                    <button class="link-button danger-link" type="submit">Remove</button>
+                  </form>
+                </div>
+              </div>
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p>No items yet.</p>
+      {% endif %}
     </div>
   </section>
 {% endblock %}
