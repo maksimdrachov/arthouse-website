@@ -16,6 +16,7 @@ This repo is scaffolded as a small server-rendered Node.js application. It is in
 - `src/server.ts` starts the HTTP server.
 - `src/app.ts` configures Express, sessions, templates, and static files.
 - `src/routes/` contains public/private route groups.
+- `src/db/` contains the SQLite connection helper, typed data models, and repository functions.
 - `src/views/` contains Nunjucks templates.
 - `public/` contains CSS and future browser-side JavaScript.
 - `assets/` contains tracked sample/static artwork and banner images.
@@ -65,6 +66,7 @@ This repo is scaffolded as a small server-rendered Node.js application. It is in
 
 - Public pages should live in `src/routes/public.ts` until they become large enough to split by domain.
 - Registration, login, dashboard, and admin pages should live in `src/routes/private.ts` initially.
+- Use the repository exports from `src/db/index.ts` for database access instead of preparing SQL directly in route handlers.
 - Use the tables in `db/migrations/001_initial.sql` as the starting data model for artists, registration codes, items, item photos, and reservations.
 - Uploaded banners and item photos should be stored under `uploads/` in development. Use `UPLOADS_DIR` to point production uploads at persistent storage.
 - The existing `assets/` directory should stay for checked-in seed/demo imagery.
