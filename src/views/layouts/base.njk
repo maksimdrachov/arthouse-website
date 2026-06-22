@@ -13,9 +13,10 @@
         <nav class="site-nav" aria-label="Primary">
           <a href="/">Home</a>
           {% if currentArtist %}
-            <a href="/dashboard">Dashboard</a>
             {% if isAdmin %}
               <a href="/admin">Admin</a>
+            {% else %}
+              <a href="/dashboard">Dashboard</a>
             {% endif %}
             <form class="inline-form" action="/logout" method="post">
               <button class="link-button" type="submit">Logout</button>

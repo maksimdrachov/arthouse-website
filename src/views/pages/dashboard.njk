@@ -24,6 +24,9 @@
       {% if itemDeleted %}
         <div class="message message-info">Item removed.</div>
       {% endif %}
+      {% if reservationUpdated %}
+        <div class="message message-info">Reservation updated.</div>
+      {% endif %}
 
       {% if artist.bannerPath %}
         <img class="profile-banner" src="{{ artist.bannerPath }}" alt="">
@@ -61,6 +64,59 @@
           </div>
         {% endif %}
       </dl>
+    </div>
+  </section>
+
+  <section class="window">
+    <div class="window-title">Reservations</div>
+    <div class="window-body">
+      <h2>Reservations</h2>
+
+      {% if reservations.length %}
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Reserved</th>
+                <th>Telegram</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for reservation in reservations %}
+                <tr>
+                  <td>
+                    {% if reservation.item %}
+                      <a href="/products/{{ reservation.item.id }}">{{ reservation.item.name }}</a>
+                    {% else %}
+                      Removed item #{{ reservation.itemId }}
+                    {% endif %}
+                  </td>
+                  <td>{{ reservation.reservedAt }}</td>
+                  <td>{{ reservation.customerTelegram }}</td>
+                  <td>{{ reservation.status }}</td>
+                  <td>
+                    {% if reservation.status == "pending" %}
+                      <form class="inline-form" action="/dashboard/reservations/{{ reservation.id }}/status" method="post">
+                        <input type="hidden" name="status" value="paid">
+                        <button class="link-button" type="submit">Paid</button>
+                      </form>
+                      <form class="inline-form" action="/dashboard/reservations/{{ reservation.id }}/status" method="post" onsubmit="return confirm('Cancel this reservation?');">
+                        <input type="hidden" name="status" value="cancelled">
+                        <button class="link-button danger-link" type="submit">Cancel</button>
+                      </form>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p>No reservations have been placed for your items yet.</p>
+      {% endif %}
     </div>
   </section>
 

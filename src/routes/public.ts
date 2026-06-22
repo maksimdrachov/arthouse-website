@@ -4,10 +4,10 @@ import type { Response } from "express";
 import {
   createReservation,
   findArtistById,
-  findArtistBySlug,
   findItemById,
   findReservationById,
-  listArtistsRandomized,
+  findStoreArtistBySlug,
+  listStoreArtistsRandomized,
   listItemPhotosByItemId,
   listItemsByArtistId,
   listRandomItems,
@@ -47,10 +47,11 @@ const toTrimmedString = (value: unknown): string => {
 
 const toPublicItemCard = (item: Item): PublicItemCard => {
   const photos = listItemPhotosByItemId(item.id);
+  const artist = findArtistById(item.artistId);
 
   return {
     ...item,
-    artist: findArtistById(item.artistId),
+    artist: artist?.role === "artist" ? artist : null,
     primaryPhoto: photos[0] ?? null,
     priceDisplay: formatPrice(item.priceCents, item.currency)
   };
@@ -68,7 +69,7 @@ const findProductContext = (
   const item = itemId ? findItemById(itemId) : null;
   const artist = item ? findArtistById(item.artistId) : null;
 
-  if (!item || !artist) {
+  if (!item || !artist || artist.role !== "artist") {
     return null;
   }
 
@@ -104,13 +105,13 @@ router.get("/", (_request, response) => {
   response.render("pages/home.njk", {
     title: "ArtHouse",
     items: listRandomItems(36).map(toPublicItemCard),
-    artists: listArtistsRandomized()
+    artists: listStoreArtistsRandomized()
   });
 });
 
 router.get("/artists/:artistSlug", (request, response) => {
   const artistSlug = typeof request.params.artistSlug === "string" ? request.params.artistSlug : "";
-  const artist = findArtistBySlug(artistSlug);
+  const artist = findStoreArtistBySlug(artistSlug);
 
   if (!artist) {
     response.status(404).render("pages/not-found.njk", {

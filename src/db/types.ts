@@ -114,7 +114,7 @@ export interface Reservation {
 export interface CreateReservationInput {
   itemId: number;
   artistId: number;
-  customerTelegram?: string | null;
+  customerTelegram: string;
   status?: ReservationStatus;
 }
 

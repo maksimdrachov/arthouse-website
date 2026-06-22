@@ -6,7 +6,11 @@
     <div class="window-body">
       <h1>Forbidden</h1>
       <p>You do not have access to this page.</p>
-      <p><a href="/dashboard">Back to dashboard</a></p>
+      {% if isAdmin %}
+        <p><a href="/admin">Back to admin</a></p>
+      {% else %}
+        <p><a href="/dashboard">Back to dashboard</a></p>
+      {% endif %}
     </div>
   </section>
 {% endblock %}

@@ -62,22 +62,24 @@
           <table class="data-table">
             <thead>
               <tr>
-                <th>Reserved</th>
-                <th>Customer</th>
-                <th>Status</th>
+                <th>Reservation made</th>
+                <th>Telegram customer</th>
                 <th>Item</th>
                 <th>Artist</th>
                 <th>Amount</th>
-                <th>Paid</th>
-                <th>Cancelled</th>
               </tr>
             </thead>
             <tbody>
               {% for reservation in reservations %}
                 <tr>
                   <td>{{ reservation.reservedAt }}</td>
-                  <td>{{ reservation.customerTelegram or "No Telegram" }}</td>
-                  <td>{{ reservation.status }}</td>
+                  <td>
+                    {% if reservation.source == "itemAvailability" %}
+                      No customer record
+                    {% else %}
+                      {{ reservation.customerTelegram or "No Telegram" }}
+                    {% endif %}
+                  </td>
                   <td>
                     {% if reservation.item %}
                       <a href="/products/{{ reservation.item.id }}">{{ reservation.item.name }}</a>
@@ -93,8 +95,6 @@
                     {% endif %}
                   </td>
                   <td>{{ reservation.priceDisplay }}</td>
-                  <td>{{ reservation.paidAt or "" }}</td>
-                  <td>{{ reservation.cancelledAt or "" }}</td>
                 </tr>
               {% endfor %}
             </tbody>

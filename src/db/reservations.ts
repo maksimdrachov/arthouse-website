@@ -29,8 +29,14 @@ const mapReservation = (row: ReservationRow): Reservation => ({
 });
 
 export const createReservation = (input: CreateReservationInput): Reservation => {
+  const customerTelegram = input.customerTelegram.trim();
+
+  if (customerTelegram.length === 0) {
+    throw new Error("Reservation contact handle is required.");
+  }
+
   const result = getDatabase()
-    .prepare<[number, number, string | null, ReservationStatus]>(
+    .prepare<[number, number, string, ReservationStatus]>(
       `
         INSERT INTO reservations (item_id, artist_id, customer_telegram, status)
         VALUES (?, ?, ?, ?)
@@ -39,7 +45,7 @@ export const createReservation = (input: CreateReservationInput): Reservation =>
     .run(
       input.itemId,
       input.artistId,
-      input.customerTelegram ?? null,
+      customerTelegram,
       input.status ?? "pending"
     );
 

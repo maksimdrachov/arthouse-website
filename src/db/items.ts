@@ -87,7 +87,7 @@ export const findItemByArtistSlugAndItemSlug = (
         SELECT items.*
         FROM items
         JOIN artists ON artists.id = items.artist_id
-        WHERE artists.slug = ? AND items.slug = ?
+        WHERE artists.slug = ? AND artists.role = 'artist' AND items.slug = ?
       `
     )
     .get(artistSlug, itemSlug);
@@ -115,7 +115,16 @@ export const listItemsByAvailability = (availability: ItemAvailability): Item[] 
 
 export const listRandomItems = (limit: number): Item[] => {
   return getDatabase()
-    .prepare<[number], ItemRow>("SELECT * FROM items ORDER BY RANDOM() LIMIT ?")
+    .prepare<[number], ItemRow>(
+      `
+        SELECT items.*
+        FROM items
+        JOIN artists ON artists.id = items.artist_id
+        WHERE artists.role = 'artist'
+        ORDER BY RANDOM()
+        LIMIT ?
+      `
+    )
     .all(limit)
     .map(mapItem);
 };

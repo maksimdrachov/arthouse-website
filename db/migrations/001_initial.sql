@@ -54,7 +54,7 @@ CREATE TABLE reservations (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   item_id INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
   artist_id INTEGER NOT NULL REFERENCES artists(id) ON DELETE CASCADE,
-  customer_telegram TEXT,
+  customer_telegram TEXT NOT NULL CHECK (length(trim(customer_telegram)) > 0),
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'paid', 'cancelled')),
   reserved_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   paid_at TEXT,

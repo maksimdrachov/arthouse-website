@@ -12,8 +12,9 @@ export {
   findArtistById,
   findArtistByLoginIdentifier,
   findArtistBySlug,
+  findStoreArtistBySlug,
   listArtists,
-  listArtistsRandomized,
+  listStoreArtistsRandomized,
   updateArtist
 } from "./artists.js";
 export {

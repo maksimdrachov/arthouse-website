@@ -19,7 +19,9 @@ import {
   findItemById,
   findItemPhotoById,
   findRegistrationCode,
+  findReservationById,
   listArtists,
+  listItemsByAvailability,
   listItemPhotosByItemId,
   listItemsByArtistId,
   listRegistrationCodes,
@@ -28,7 +30,8 @@ import {
   markRegistrationCodeUsed,
   runInTransaction,
   updateArtist,
-  updateItem
+  updateItem,
+  updateReservationStatus
 } from "../db/index.js";
 import type { Artist, Item, ItemAvailability, ItemPhoto, Reservation } from "../db/index.js";
 import {
@@ -78,7 +81,20 @@ interface DashboardItemView extends Item {
   primaryPhoto: ItemPhoto | null;
 }
 
-interface AdminReservationView extends Reservation {
+interface DashboardReservationView extends Reservation {
+  item: Item | null;
+}
+
+interface AdminReservationView {
+  id: number | null;
+  itemId: number;
+  artistId: number;
+  customerTelegram: string | null;
+  status: Reservation["status"] | "reserved";
+  reservedAt: string;
+  paidAt: string | null;
+  cancelledAt: string | null;
+  source: "reservation" | "itemAvailability";
   artist: Artist | null;
   item: Item | null;
   priceDisplay: string;
@@ -265,17 +281,55 @@ const buildDashboardItems = (artistId: number): DashboardItemView[] => {
   });
 };
 
+const buildDashboardReservations = (artistId: number): DashboardReservationView[] => {
+  return listReservations({ artistId }).map((reservation) => ({
+    ...reservation,
+    item: findItemById(reservation.itemId)
+  }));
+};
+
 const buildAdminReservationReports = (): AdminReservationView[] => {
-  return listReservations().map((reservation) => {
+  const reservations = listReservations().map((reservation) => {
     const item = findItemById(reservation.itemId);
     const artist = findArtistById(reservation.artistId);
 
     return {
       ...reservation,
+      source: "reservation" as const,
       artist,
       item,
       priceDisplay: item ? formatPrice(item.priceCents, item.currency) : ""
     };
+  });
+
+  const reservedReservationItemIds = new Set(
+    reservations
+      .filter((reservation) => reservation.status !== "cancelled")
+      .map((reservation) => reservation.itemId)
+  );
+  const reservedItemsWithoutReservations = listItemsByAvailability("reserved")
+    .filter((item) => !reservedReservationItemIds.has(item.id))
+    .map((item) => ({
+      id: null,
+      itemId: item.id,
+      artistId: item.artistId,
+      customerTelegram: null,
+      status: "reserved" as const,
+      reservedAt: item.updatedAt,
+      paidAt: null,
+      cancelledAt: null,
+      source: "itemAvailability" as const,
+      artist: findArtistById(item.artistId),
+      item,
+      priceDisplay: formatPrice(item.priceCents, item.currency)
+    }));
+
+  return [...reservations, ...reservedItemsWithoutReservations].sort((left, right) => {
+    return (
+      right.reservedAt.localeCompare(left.reservedAt) ||
+      (right.id ?? 0) - (left.id ?? 0) ||
+      right.itemId - left.itemId
+    );
   });
 };
 
@@ -436,7 +490,7 @@ router.post("/login", async (request, response) => {
   }
 
   await signIn(request, artist);
-  response.redirect(values.next);
+  response.redirect(artist.role === "admin" && values.next.startsWith("/dashboard") ? "/admin" : values.next);
 });
 
 router.post("/logout", requireAuth, async (request, response) => {
@@ -445,7 +499,7 @@ router.post("/logout", requireAuth, async (request, response) => {
   response.redirect("/login?loggedOut=1");
 });
 
-router.get("/dashboard", requireAuth, (request, response) => {
+router.get("/dashboard", requireRole("artist"), (request, response) => {
   const currentArtist = getCurrentArtistOrRedirect(response);
   if (!currentArtist) {
     return;
@@ -455,15 +509,17 @@ router.get("/dashboard", requireAuth, (request, response) => {
     title: "Artist dashboard",
     artist: currentArtist,
     items: buildDashboardItems(currentArtist.id),
+    reservations: buildDashboardReservations(currentArtist.id),
     registered: request.query.registered === "1",
     profileUpdated: request.query.profileUpdated === "1",
     itemCreated: request.query.itemCreated === "1",
     itemUpdated: request.query.itemUpdated === "1",
-    itemDeleted: request.query.itemDeleted === "1"
+    itemDeleted: request.query.itemDeleted === "1",
+    reservationUpdated: request.query.reservationUpdated === "1"
   });
 });
 
-router.get("/dashboard/profile/edit", requireAuth, (_request, response) => {
+router.get("/dashboard/profile/edit", requireRole("artist"), (_request, response) => {
   const currentArtist = getCurrentArtistOrRedirect(response);
   if (!currentArtist) {
     return;
@@ -478,7 +534,7 @@ router.get("/dashboard/profile/edit", requireAuth, (_request, response) => {
   });
 });
 
-router.post("/dashboard/profile", requireAuth, async (request, response) => {
+router.post("/dashboard/profile", requireRole("artist"), async (request, response) => {
   const currentArtist = getCurrentArtistOrRedirect(response);
   if (!currentArtist) {
     return;
@@ -554,7 +610,7 @@ router.post("/dashboard/profile", requireAuth, async (request, response) => {
   response.redirect("/dashboard?profileUpdated=1");
 });
 
-router.get("/dashboard/items/new", requireAuth, (_request, response) => {
+router.get("/dashboard/items/new", requireRole("artist"), (_request, response) => {
   renderItemForm(response, {
     mode: "new",
     item: null,
@@ -569,7 +625,7 @@ router.get("/dashboard/items/new", requireAuth, (_request, response) => {
   });
 });
 
-router.post("/dashboard/items", requireAuth, async (request, response) => {
+router.post("/dashboard/items", requireRole("artist"), async (request, response) => {
   const currentArtist = getCurrentArtistOrRedirect(response);
   if (!currentArtist) {
     return;
@@ -662,7 +718,7 @@ router.post("/dashboard/items", requireAuth, async (request, response) => {
   response.redirect("/dashboard?itemCreated=1");
 });
 
-router.get("/dashboard/items/:itemId/edit", requireAuth, (request, response) => {
+router.get("/dashboard/items/:itemId/edit", requireRole("artist"), (request, response) => {
   const currentArtist = getCurrentArtistOrRedirect(response);
   if (!currentArtist) {
     return;
@@ -688,7 +744,7 @@ router.get("/dashboard/items/:itemId/edit", requireAuth, (request, response) => 
   });
 });
 
-router.post("/dashboard/items/:itemId", requireAuth, async (request, response) => {
+router.post("/dashboard/items/:itemId", requireRole("artist"), async (request, response) => {
   const currentArtist = getCurrentArtistOrRedirect(response);
   if (!currentArtist) {
     return;
@@ -786,7 +842,7 @@ router.post("/dashboard/items/:itemId", requireAuth, async (request, response) =
   response.redirect("/dashboard?itemUpdated=1");
 });
 
-router.post("/dashboard/items/:itemId/availability", requireAuth, (request, response) => {
+router.post("/dashboard/items/:itemId/availability", requireRole("artist"), (request, response) => {
   const currentArtist = getCurrentArtistOrRedirect(response);
   if (!currentArtist) {
     return;
@@ -806,7 +862,55 @@ router.post("/dashboard/items/:itemId/availability", requireAuth, (request, resp
   response.redirect("/dashboard?itemUpdated=1");
 });
 
-router.post("/dashboard/items/:itemId/photos/:photoId/delete", requireAuth, (request, response) => {
+router.post("/dashboard/reservations/:reservationId/status", requireRole("artist"), (request, response) => {
+  const currentArtist = getCurrentArtistOrRedirect(response);
+  if (!currentArtist) {
+    return;
+  }
+
+  const reservationId = parseId(request.params.reservationId);
+  const reservation = reservationId ? findReservationById(reservationId) : null;
+
+  if (!reservation || reservation.artistId !== currentArtist.id) {
+    response.status(404).render("pages/not-found.njk", {
+      title: "Reservation not found"
+    });
+    return;
+  }
+
+  const status = toTrimmedString(request.body.status);
+  if (status !== "paid" && status !== "cancelled") {
+    response.redirect("/dashboard");
+    return;
+  }
+
+  if (reservation.status !== "pending") {
+    response.redirect("/dashboard");
+    return;
+  }
+
+  runInTransaction(() => {
+    updateReservationStatus(reservation.id, status);
+
+    const item = findItemById(reservation.itemId);
+    if (!item || item.artistId !== currentArtist.id) {
+      return;
+    }
+
+    if (status === "paid") {
+      updateItem(item.id, { availability: "sold" });
+    } else if (
+      item.availability === "reserved" &&
+      !listReservations({ itemId: item.id }).some((currentReservation) => currentReservation.status !== "cancelled")
+    ) {
+      updateItem(item.id, { availability: "available" });
+    }
+  });
+
+  response.redirect("/dashboard?reservationUpdated=1");
+});
+
+router.post("/dashboard/items/:itemId/photos/:photoId/delete", requireRole("artist"), (request, response) => {
   const currentArtist = getCurrentArtistOrRedirect(response);
   if (!currentArtist) {
     return;
@@ -829,7 +933,7 @@ router.post("/dashboard/items/:itemId/photos/:photoId/delete", requireAuth, (req
   response.redirect(`/dashboard/items/${item.id}/edit`);
 });
 
-router.post("/dashboard/items/:itemId/delete", requireAuth, (request, response) => {
+router.post("/dashboard/items/:itemId/delete", requireRole("artist"), (request, response) => {
   const currentArtist = getCurrentArtistOrRedirect(response);
   if (!currentArtist) {
     return;

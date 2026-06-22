@@ -87,6 +87,14 @@ export const findArtistBySlug = (slug: string): Artist | null => {
   return row ? mapArtist(row) : null;
 };
 
+export const findStoreArtistBySlug = (slug: string): Artist | null => {
+  const row = getDatabase()
+    .prepare<[string], ArtistRow>("SELECT * FROM artists WHERE slug = ? AND role = 'artist'")
+    .get(slug);
+
+  return row ? mapArtist(row) : null;
+};
+
 export const findArtistByLoginIdentifier = (identifier: string): Artist | null => {
   const normalizedIdentifier = identifier.trim();
   const row = getDatabase()
@@ -112,9 +120,9 @@ export const listArtists = (): Artist[] => {
     .map(mapArtist);
 };
 
-export const listArtistsRandomized = (): Artist[] => {
+export const listStoreArtistsRandomized = (): Artist[] => {
   return getDatabase()
-    .prepare<[], ArtistRow>("SELECT * FROM artists ORDER BY RANDOM()")
+    .prepare<[], ArtistRow>("SELECT * FROM artists WHERE role = 'artist' ORDER BY RANDOM()")
     .all()
     .map(mapArtist);
 };
