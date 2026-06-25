@@ -42,7 +42,7 @@
         </label>
 
         <label class="form-row">
-          <span>Telegram</span>
+          <span>Telegram channel</span>
           <input name="telegram" value="{{ values.telegram }}" autocomplete="off">
         </label>
 
@@ -52,8 +52,9 @@
         </label>
 
         <label class="form-row">
-          <span>Store banner</span>
-          <input name="banner" type="file" accept="image/jpeg,image/png,image/gif,image/webp">
+          <span>Store banner (1100 x 250 px)</span>
+          <input name="banner" type="file" accept="image/jpeg,image/png,image/gif,image/webp" aria-describedby="banner-dimension-warning" data-banner-upload data-required-width="1100" data-required-height="250">
+          <span class="field-warning" id="banner-dimension-warning" role="alert" hidden data-banner-warning></span>
         </label>
 
         <div class="form-actions">
@@ -63,4 +64,8 @@
       </form>
     </div>
   </section>
+{% endblock %}
+
+{% block scripts %}
+  <script src="/scripts/profile-edit.js"></script>
 {% endblock %}

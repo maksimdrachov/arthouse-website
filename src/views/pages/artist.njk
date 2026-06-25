@@ -2,7 +2,6 @@
 
 {% block content %}
   <section class="window">
-    <div class="window-title">{{ artist.name }}</div>
     <div class="window-body">
       {% if artist.bannerPath %}
         <img class="public-artist-banner" src="{{ artist.bannerPath }}" alt="">
@@ -10,8 +9,15 @@
 
       <div class="artist-public-heading">
         <h1>{{ artist.name }}</h1>
-        {% if artist.instagram %}
-          <a href="https://instagram.com/{{ artist.instagram }}" rel="noreferrer">Instagram</a>
+        {% if artist.instagram or artist.telegramUrl %}
+          <div class="artist-public-links">
+            {% if artist.instagram %}
+              <a href="https://instagram.com/{{ artist.instagram }}" rel="noreferrer">Instagram</a>
+            {% endif %}
+            {% if artist.telegramUrl %}
+              <a href="{{ artist.telegramUrl }}" rel="noreferrer">Telegram</a>
+            {% endif %}
+          </div>
         {% endif %}
       </div>
 
@@ -21,8 +27,7 @@
     </div>
   </section>
 
-  <section class="window">
-    <div class="window-title">Store items</div>
+  <section class="window home-transparent-window">
     <div class="window-body">
       {% if items.length %}
         <div class="public-item-grid">

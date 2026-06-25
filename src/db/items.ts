@@ -120,7 +120,7 @@ export const listRandomItems = (limit: number): Item[] => {
         SELECT items.*
         FROM items
         JOIN artists ON artists.id = items.artist_id
-        WHERE artists.role = 'artist'
+        WHERE artists.role = 'artist' AND items.availability = 'available'
         ORDER BY RANDOM()
         LIMIT ?
       `

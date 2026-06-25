@@ -2,7 +2,6 @@
 
 {% block content %}
   <section class="window">
-    <div class="window-title">Artist dashboard</div>
     <div class="window-body">
       <div class="section-heading">
         <h1>{{ artist.name }}</h1>
@@ -34,20 +33,12 @@
 
       <dl class="detail-list">
         <div>
-          <dt>Store URL</dt>
-          <dd><a href="/artists/{{ artist.slug }}">/artists/{{ artist.slug }}</a></dd>
-        </div>
-        <div>
-          <dt>Role</dt>
-          <dd>{{ artist.role }}</dd>
-        </div>
-        <div>
           <dt>Bank account</dt>
           <dd>{{ artist.bankAccount }}</dd>
         </div>
         {% if artist.telegram %}
           <div>
-            <dt>Telegram</dt>
+            <dt>Telegram channel</dt>
             <dd>{{ artist.telegram }}</dd>
           </div>
         {% endif %}
@@ -68,7 +59,6 @@
   </section>
 
   <section class="window">
-    <div class="window-title">Reservations</div>
     <div class="window-body">
       <h2>Reservations</h2>
 
@@ -121,7 +111,6 @@
   </section>
 
   <section class="window">
-    <div class="window-title">Items</div>
     <div class="window-body">
       <div class="section-heading">
         <h2>Store items</h2>

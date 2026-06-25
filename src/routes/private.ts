@@ -35,8 +35,11 @@ import {
 } from "../db/index.js";
 import type { Artist, Item, ItemAvailability, ItemPhoto, Reservation } from "../db/index.js";
 import {
+  ARTIST_BANNER_HEIGHT,
+  ARTIST_BANNER_WIDTH,
   deleteStoredUpload,
   deleteUploadedFiles,
+  hasRequiredArtistBannerDimensions,
   storedUploadPath,
   uploadImages
 } from "../uploads.js";
@@ -579,6 +582,12 @@ router.post("/dashboard/profile", requireRole("artist"), async (request, respons
 
   if (newPassword.length > 0 && newPassword.length < 8) {
     errors.push("New password must be at least 8 characters.");
+  }
+
+  if (uploadedBanner && !hasRequiredArtistBannerDimensions(uploadedBanner)) {
+    errors.push(
+      `Store banner must be exactly ${ARTIST_BANNER_WIDTH} x ${ARTIST_BANNER_HEIGHT} pixels.`
+    );
   }
 
   if (errors.length > 0) {

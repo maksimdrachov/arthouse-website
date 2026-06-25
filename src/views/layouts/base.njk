@@ -7,9 +7,16 @@
     <link rel="stylesheet" href="/styles/site.css">
   </head>
   <body>
+    <div class="dvd-background" aria-hidden="true" data-dvd-layer>
+      <img class="dvd-video-mark" src="/assets/arthouse.svg" alt="" data-dvd-bouncer>
+    </div>
+
     <div class="page-shell">
       <header class="site-header">
-        <a class="site-logo" href="/">ArtHouse</a>
+        <button class="third-eye-toggle" type="button" aria-label="open third eye" data-third-eye-state="closed" data-third-eye-toggle>
+          <img src="/assets/eye_closed.svg" alt="" data-third-eye-icon>
+        </button>
+
         <nav class="site-nav" aria-label="Primary">
           <a href="/">Home</a>
           {% if currentArtist %}
@@ -32,10 +39,9 @@
         {% block content %}{% endblock %}
       </main>
 
-      <footer class="site-footer">
-        Collective storefront scaffold
-      </footer>
     </div>
+    <script src="/scripts/dvd-background.js"></script>
+    <script src="/scripts/third-eye-toggle.js"></script>
     {% block scripts %}{% endblock %}
   </body>
 </html>

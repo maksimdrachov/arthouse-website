@@ -1,11 +1,8 @@
 {% extends "layouts/base.njk" %}
 
 {% block content %}
-  <section class="window">
-    <div class="window-title">New arrivals</div>
+  <section class="window home-transparent-window">
     <div class="window-body">
-      <h1>ArtHouse</h1>
-
       {% if items.length %}
         <div class="public-item-grid public-item-grid-home">
           {% for item in items %}
@@ -31,9 +28,10 @@
     </div>
   </section>
 
-  <section class="window">
-    <div class="window-title">Artist stores</div>
+  <section class="window home-transparent-window">
     <div class="window-body">
+      <h2 class="home-section-title">Artists</h2>
+
       {% if artists.length %}
         <div class="artist-banner-list">
           {% for artist in artists %}

@@ -7,11 +7,11 @@
       <div class="product-layout">
         <div class="product-media" data-carousel>
           {% if photos.length %}
-            <div class="product-photo-stage">
+            <button class="product-photo-stage" type="button" aria-label="View photo fullscreen" data-product-fullscreen-open>
               {% for photo in photos %}
-                <img class="product-photo {% if loop.first %}is-active{% endif %}" src="{{ photo.path }}" alt="" data-carousel-slide>
+                <img class="product-photo {% if loop.first %}is-active{% endif %}" src="{{ photo.path }}" alt="{{ item.name }} photo {{ loop.index }}" data-carousel-slide>
               {% endfor %}
-            </div>
+            </button>
 
             {% if photos.length > 1 %}
               <div class="product-carousel-controls">

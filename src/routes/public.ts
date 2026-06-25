@@ -24,6 +24,10 @@ interface PublicItemCard extends Item {
   priceDisplay: string;
 }
 
+interface PublicArtistProfile extends Artist {
+  telegramUrl: string | null;
+}
+
 interface ReserveFormValues {
   customerTelegram: string;
 }
@@ -43,6 +47,39 @@ const parseId = (value: unknown): number | null => {
 
 const toTrimmedString = (value: unknown): string => {
   return typeof value === "string" ? value.trim() : "";
+};
+
+const telegramHandlePattern = /^[a-zA-Z0-9_]{5,32}$/;
+
+const toTelegramUrl = (value: string | null): string | null => {
+  const trimmedValue = value?.trim();
+
+  if (!trimmedValue) {
+    return null;
+  }
+
+  const directLinkMatch = trimmedValue.match(
+    /^(?:https?:\/\/)?(?:t\.me|telegram\.me)\/(@?[a-zA-Z0-9_]{5,32})\/?$/i
+  );
+
+  if (directLinkMatch) {
+    return `https://t.me/${directLinkMatch[1].replace(/^@/, "")}`;
+  }
+
+  const handle = trimmedValue.replace(/^@/, "");
+
+  if (!telegramHandlePattern.test(handle)) {
+    return null;
+  }
+
+  return `https://t.me/${handle}`;
+};
+
+const toPublicArtistProfile = (artist: Artist): PublicArtistProfile => {
+  return {
+    ...artist,
+    telegramUrl: toTelegramUrl(artist.telegram)
+  };
 };
 
 const toPublicItemCard = (item: Item): PublicItemCard => {
@@ -104,7 +141,7 @@ const renderReserve = (
 router.get("/", (_request, response) => {
   response.render("pages/home.njk", {
     title: "ArtHouse",
-    items: listRandomItems(36).map(toPublicItemCard),
+    items: listRandomItems(9).map(toPublicItemCard),
     artists: listStoreArtistsRandomized()
   });
 });
@@ -122,7 +159,7 @@ router.get("/artists/:artistSlug", (request, response) => {
 
   response.render("pages/artist.njk", {
     title: artist.name,
-    artist,
+    artist: toPublicArtistProfile(artist),
     items: listItemsByArtistId(artist.id).map(toPublicItemCard)
   });
 });
