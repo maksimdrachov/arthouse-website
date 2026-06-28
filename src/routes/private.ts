@@ -79,6 +79,22 @@ interface ItemFormValues {
   availability: ItemAvailability;
 }
 
+interface ProfileFormPaths {
+  formAction: string;
+  cancelUrl: string;
+}
+
+interface ItemFormPaths {
+  itemActionBasePath: string;
+  dashboardPath: string;
+}
+
+interface DashboardPaths extends ItemFormPaths {
+  profileEditPath: string;
+  showReservations: boolean;
+  adminBackPath?: string;
+}
+
 interface DashboardItemView extends Item {
   priceDisplay: string;
   primaryPhoto: ItemPhoto | null;
@@ -113,6 +129,25 @@ interface AdminArtistView extends Artist {
   reservationCount: number;
   soldItemCount: number;
 }
+
+const artistDashboardPaths: DashboardPaths = {
+  dashboardPath: "/dashboard",
+  profileEditPath: "/dashboard/profile/edit",
+  itemActionBasePath: "/dashboard/items",
+  showReservations: true
+};
+
+const toAdminArtistPaths = (artistId: number): DashboardPaths => {
+  const artistItemsPath = `/admin/artists/${artistId}/items`;
+
+  return {
+    dashboardPath: artistItemsPath,
+    profileEditPath: `/admin/artists/${artistId}/profile/edit`,
+    itemActionBasePath: artistItemsPath,
+    showReservations: false,
+    adminBackPath: "/admin"
+  };
+};
 
 const toTrimmedString = (value: unknown): string => {
   return typeof value === "string" ? value.trim() : "";
@@ -179,6 +214,22 @@ const createUniqueItemSlug = (artistId: number, name: string): string => {
   return slug;
 };
 
+const profileValuesFromArtist = (artist: Artist): ProfileFormValues => ({
+  name: artist.name,
+  bankAccount: artist.bankAccount,
+  about: artist.about ?? "",
+  telegram: artist.telegram ?? "",
+  instagram: artist.instagram ?? ""
+});
+
+const profileValuesFromRequest = (request: Request): ProfileFormValues => ({
+  name: toTrimmedString(request.body.name),
+  bankAccount: toTrimmedString(request.body.bankAccount),
+  about: toTrimmedString(request.body.about),
+  telegram: toTrimmedString(request.body.telegram),
+  instagram: toTrimmedString(request.body.instagram)
+});
+
 const getCurrentArtistOrRedirect = (response: Response): Artist | null => {
   const currentArtist = response.locals.currentArtist;
 
@@ -188,6 +239,19 @@ const getCurrentArtistOrRedirect = (response: Response): Artist | null => {
   }
 
   return currentArtist;
+};
+
+const getAdminEditableArtistOr404 = (response: Response, artistId: number | null): Artist | null => {
+  const artist = artistId ? findArtistById(artistId) : null;
+
+  if (!artist || artist.role !== "artist") {
+    response.status(404).render("pages/not-found.njk", {
+      title: "Artist not found"
+    });
+    return null;
+  }
+
+  return artist;
 };
 
 const getArtistItemOr404 = (response: Response, artistId: number, itemId: number): Item | null => {
@@ -244,13 +308,18 @@ const renderProfileForm = (
   response: Response,
   artist: Artist,
   values: ProfileFormValues,
-  errors: string[] = []
+  errors: string[] = [],
+  paths: ProfileFormPaths = {
+    formAction: "/dashboard/profile",
+    cancelUrl: "/dashboard"
+  }
 ): void => {
   response.status(errors.length > 0 ? 400 : 200).render("pages/profile-edit.njk", {
     title: "Edit profile",
     artist,
     values,
-    errors
+    errors,
+    ...paths
   });
 };
 
@@ -262,12 +331,15 @@ const renderItemForm = (
     photos: ItemPhoto[];
     values: ItemFormValues;
     errors?: string[];
+    paths?: ItemFormPaths;
   }
 ): void => {
   response.status(options.errors?.length ? 400 : 200).render("pages/item-form.njk", {
     title: options.mode === "new" ? "Add item" : "Edit item",
     availabilityOptions,
     ...options,
+    itemActionBasePath: options.paths?.itemActionBasePath ?? "/dashboard/items",
+    cancelUrl: options.paths?.dashboardPath ?? "/dashboard",
     errors: options.errors ?? []
   });
 };
@@ -358,6 +430,323 @@ const buildAdminArtistReports = (): AdminArtistView[] => {
         soldItemCount: items.filter((item) => item.availability === "sold").length
       };
     });
+};
+
+const renderArtistDashboard = (
+  request: Request,
+  response: Response,
+  artist: Artist,
+  paths: DashboardPaths,
+  title: string
+): void => {
+  response.render("pages/dashboard.njk", {
+    title,
+    artist,
+    items: buildDashboardItems(artist.id),
+    reservations: paths.showReservations ? buildDashboardReservations(artist.id) : [],
+    registered: request.query.registered === "1",
+    profileUpdated: request.query.profileUpdated === "1",
+    itemCreated: request.query.itemCreated === "1",
+    itemUpdated: request.query.itemUpdated === "1",
+    itemDeleted: request.query.itemDeleted === "1",
+    reservationUpdated: request.query.reservationUpdated === "1",
+    ...paths
+  });
+};
+
+const handleProfileUpdate = async (
+  request: Request,
+  response: Response,
+  artist: Artist,
+  paths: ProfileFormPaths,
+  successRedirect: string
+): Promise<void> => {
+  try {
+    await runUpload(request, response, uploadImages.single("banner"));
+  } catch (error) {
+    renderProfileForm(response, artist, profileValuesFromRequest(request), [(error as Error).message], paths);
+    return;
+  }
+
+  const uploadedBanner = request.file;
+  const values = profileValuesFromRequest(request);
+  const newPassword = toTrimmedString(request.body.password);
+  const errors: string[] = [];
+
+  if (values.name.length < 2) {
+    errors.push("Artist name is required.");
+  }
+
+  if (values.bankAccount.length === 0) {
+    errors.push("Bank account is required.");
+  }
+
+  if (newPassword.length > 0 && newPassword.length < 8) {
+    errors.push("New password must be at least 8 characters.");
+  }
+
+  if (uploadedBanner && !hasRequiredArtistBannerDimensions(uploadedBanner)) {
+    errors.push(
+      `Store banner must be exactly ${ARTIST_BANNER_WIDTH} x ${ARTIST_BANNER_HEIGHT} pixels.`
+    );
+  }
+
+  if (errors.length > 0) {
+    if (uploadedBanner) {
+      deleteUploadedFiles([uploadedBanner]);
+    }
+
+    renderProfileForm(response, artist, values, errors, paths);
+    return;
+  }
+
+  const passwordHash = newPassword ? await hashPassword(newPassword) : undefined;
+  const bannerPath = uploadedBanner ? storedUploadPath(uploadedBanner) : undefined;
+
+  updateArtist(artist.id, {
+    name: values.name,
+    bankAccount: values.bankAccount,
+    about: toNullableString(values.about),
+    telegram: toNullableString(values.telegram),
+    instagram: toNullableString(values.instagram),
+    passwordHash,
+    bannerPath
+  });
+
+  if (uploadedBanner && artist.bannerPath) {
+    deleteStoredUpload(artist.bannerPath);
+  }
+
+  response.redirect(successRedirect);
+};
+
+const emptyItemFormValues = (): ItemFormValues => ({
+  name: "",
+  price: "",
+  currency: "EUR",
+  description: "",
+  availability: "available"
+});
+
+const itemValuesFromRequest = (
+  request: Request,
+  fallbackAvailability: ItemAvailability = "available"
+): ItemFormValues => {
+  const availability = toTrimmedString(request.body.availability);
+
+  return {
+    name: toTrimmedString(request.body.name),
+    price: toTrimmedString(request.body.price),
+    currency: (toTrimmedString(request.body.currency) || "EUR").toUpperCase(),
+    description: toTrimmedString(request.body.description),
+    availability: isItemAvailability(availability) ? availability : fallbackAvailability
+  };
+};
+
+const renderNewItemForm = (
+  response: Response,
+  paths: ItemFormPaths,
+  values: ItemFormValues = emptyItemFormValues(),
+  errors: string[] = []
+): void => {
+  renderItemForm(response, {
+    mode: "new",
+    item: null,
+    photos: [],
+    values,
+    errors,
+    paths
+  });
+};
+
+const renderEditItemForm = (
+  response: Response,
+  item: Item,
+  paths: ItemFormPaths,
+  values: ItemFormValues = {
+    name: item.name,
+    price: formatPriceInput(item.priceCents),
+    currency: item.currency,
+    description: item.description,
+    availability: item.availability
+  },
+  errors: string[] = []
+): void => {
+  renderItemForm(response, {
+    mode: "edit",
+    item,
+    photos: listItemPhotosByItemId(item.id),
+    values,
+    errors,
+    paths
+  });
+};
+
+const validateItemValues = (
+  values: ItemFormValues,
+  rawAvailability: string
+): { priceCents: number | null; errors: string[] } => {
+  const priceCents = parsePriceCents(values.price);
+  const errors: string[] = [];
+
+  if (values.name.length === 0) {
+    errors.push("Item name is required.");
+  }
+
+  if (priceCents === null) {
+    errors.push("Price must be a number with up to two decimal places.");
+  }
+
+  if (!/^[A-Z]{3}$/.test(values.currency)) {
+    errors.push("Currency must be a 3-letter code.");
+  }
+
+  if (!isItemAvailability(rawAvailability)) {
+    errors.push("Availability is invalid.");
+  }
+
+  return { priceCents, errors };
+};
+
+const handleCreateItem = async (
+  request: Request,
+  response: Response,
+  artist: Artist,
+  paths: ItemFormPaths
+): Promise<void> => {
+  try {
+    await runUpload(request, response, uploadImages.array("photos", 12));
+  } catch (error) {
+    renderNewItemForm(response, paths, itemValuesFromRequest(request), [(error as Error).message]);
+    return;
+  }
+
+  const uploadedPhotos = uploadedArray(request);
+  const availability = toTrimmedString(request.body.availability);
+  const values = itemValuesFromRequest(request);
+  const { priceCents, errors } = validateItemValues(values, availability);
+
+  if (errors.length > 0 || priceCents === null) {
+    deleteUploadedFiles(uploadedPhotos);
+    renderNewItemForm(response, paths, values, errors);
+    return;
+  }
+
+  try {
+    runInTransaction(() => {
+      const item = createItem({
+        artistId: artist.id,
+        slug: createUniqueItemSlug(artist.id, values.name),
+        name: values.name,
+        priceCents,
+        currency: values.currency,
+        description: values.description,
+        availability: values.availability
+      });
+
+      uploadedPhotos.forEach((photo, index) => {
+        createItemPhoto({
+          itemId: item.id,
+          path: storedUploadPath(photo),
+          sortOrder: index
+        });
+      });
+    });
+  } catch (error) {
+    deleteUploadedFiles(uploadedPhotos);
+    throw error;
+  }
+
+  response.redirect(`${paths.dashboardPath}?itemCreated=1`);
+};
+
+const handleUpdateItem = async (
+  request: Request,
+  response: Response,
+  item: Item,
+  paths: ItemFormPaths
+): Promise<void> => {
+  try {
+    await runUpload(request, response, uploadImages.array("photos", 12));
+  } catch (error) {
+    renderEditItemForm(
+      response,
+      item,
+      paths,
+      itemValuesFromRequest(request, item.availability),
+      [(error as Error).message]
+    );
+    return;
+  }
+
+  const uploadedPhotos = uploadedArray(request);
+  const availability = toTrimmedString(request.body.availability);
+  const values = itemValuesFromRequest(request, item.availability);
+  const { priceCents, errors } = validateItemValues(values, availability);
+
+  if (errors.length > 0 || priceCents === null) {
+    deleteUploadedFiles(uploadedPhotos);
+    renderEditItemForm(response, item, paths, values, errors);
+    return;
+  }
+
+  try {
+    runInTransaction(() => {
+      updateItem(item.id, {
+        name: values.name,
+        priceCents,
+        currency: values.currency,
+        description: values.description,
+        availability: values.availability
+      });
+
+      const existingPhotoCount = listItemPhotosByItemId(item.id).length;
+      uploadedPhotos.forEach((photo, index) => {
+        createItemPhoto({
+          itemId: item.id,
+          path: storedUploadPath(photo),
+          sortOrder: existingPhotoCount + index
+        });
+      });
+    });
+  } catch (error) {
+    deleteUploadedFiles(uploadedPhotos);
+    throw error;
+  }
+
+  response.redirect(`${paths.dashboardPath}?itemUpdated=1`);
+};
+
+const handleUpdateItemAvailability = (
+  request: Request,
+  response: Response,
+  item: Item,
+  paths: ItemFormPaths
+): void => {
+  const availability = toTrimmedString(request.body.availability);
+  if (isItemAvailability(availability)) {
+    updateItem(item.id, { availability });
+  }
+
+  response.redirect(`${paths.dashboardPath}?itemUpdated=1`);
+};
+
+const handleDeleteItemPhoto = (
+  response: Response,
+  item: Item,
+  photo: ItemPhoto,
+  paths: ItemFormPaths
+): void => {
+  deleteItemPhoto(photo.id);
+  deleteStoredUpload(photo.path);
+  response.redirect(`${paths.itemActionBasePath}/${item.id}/edit`);
+};
+
+const handleDeleteItem = (response: Response, item: Item, paths: ItemFormPaths): void => {
+  const photos = listItemPhotosByItemId(item.id);
+  deleteItem(item.id);
+  photos.forEach((photo) => deleteStoredUpload(photo.path));
+  response.redirect(`${paths.dashboardPath}?itemDeleted=1`);
 };
 
 const redirectToAdmin = (response: Response, params: Record<string, string>): void => {
@@ -508,18 +897,7 @@ router.get("/dashboard", requireRole("artist"), (request, response) => {
     return;
   }
 
-  response.render("pages/dashboard.njk", {
-    title: "Artist dashboard",
-    artist: currentArtist,
-    items: buildDashboardItems(currentArtist.id),
-    reservations: buildDashboardReservations(currentArtist.id),
-    registered: request.query.registered === "1",
-    profileUpdated: request.query.profileUpdated === "1",
-    itemCreated: request.query.itemCreated === "1",
-    itemUpdated: request.query.itemUpdated === "1",
-    itemDeleted: request.query.itemDeleted === "1",
-    reservationUpdated: request.query.reservationUpdated === "1"
-  });
+  renderArtistDashboard(request, response, currentArtist, artistDashboardPaths, "Artist dashboard");
 });
 
 router.get("/dashboard/profile/edit", requireRole("artist"), (_request, response) => {
@@ -528,13 +906,7 @@ router.get("/dashboard/profile/edit", requireRole("artist"), (_request, response
     return;
   }
 
-  renderProfileForm(response, currentArtist, {
-    name: currentArtist.name,
-    bankAccount: currentArtist.bankAccount,
-    about: currentArtist.about ?? "",
-    telegram: currentArtist.telegram ?? "",
-    instagram: currentArtist.instagram ?? ""
-  });
+  renderProfileForm(response, currentArtist, profileValuesFromArtist(currentArtist));
 });
 
 router.post("/dashboard/profile", requireRole("artist"), async (request, response) => {
@@ -543,95 +915,20 @@ router.post("/dashboard/profile", requireRole("artist"), async (request, respons
     return;
   }
 
-  try {
-    await runUpload(request, response, uploadImages.single("banner"));
-  } catch (error) {
-    renderProfileForm(
-      response,
-      currentArtist,
-      {
-        name: toTrimmedString(request.body.name),
-        bankAccount: toTrimmedString(request.body.bankAccount),
-        about: toTrimmedString(request.body.about),
-        telegram: toTrimmedString(request.body.telegram),
-        instagram: toTrimmedString(request.body.instagram)
-      },
-      [(error as Error).message]
-    );
-    return;
-  }
-
-  const uploadedBanner = request.file;
-  const values: ProfileFormValues = {
-    name: toTrimmedString(request.body.name),
-    bankAccount: toTrimmedString(request.body.bankAccount),
-    about: toTrimmedString(request.body.about),
-    telegram: toTrimmedString(request.body.telegram),
-    instagram: toTrimmedString(request.body.instagram)
-  };
-  const newPassword = toTrimmedString(request.body.password);
-  const errors: string[] = [];
-
-  if (values.name.length < 2) {
-    errors.push("Artist name is required.");
-  }
-
-  if (values.bankAccount.length === 0) {
-    errors.push("Bank account is required.");
-  }
-
-  if (newPassword.length > 0 && newPassword.length < 8) {
-    errors.push("New password must be at least 8 characters.");
-  }
-
-  if (uploadedBanner && !hasRequiredArtistBannerDimensions(uploadedBanner)) {
-    errors.push(
-      `Store banner must be exactly ${ARTIST_BANNER_WIDTH} x ${ARTIST_BANNER_HEIGHT} pixels.`
-    );
-  }
-
-  if (errors.length > 0) {
-    if (uploadedBanner) {
-      deleteUploadedFiles([uploadedBanner]);
-    }
-
-    renderProfileForm(response, currentArtist, values, errors);
-    return;
-  }
-
-  const passwordHash = newPassword ? await hashPassword(newPassword) : undefined;
-  const bannerPath = uploadedBanner ? storedUploadPath(uploadedBanner) : undefined;
-
-  updateArtist(currentArtist.id, {
-    name: values.name,
-    bankAccount: values.bankAccount,
-    about: toNullableString(values.about),
-    telegram: toNullableString(values.telegram),
-    instagram: toNullableString(values.instagram),
-    passwordHash,
-    bannerPath
-  });
-
-  if (uploadedBanner && currentArtist.bannerPath) {
-    deleteStoredUpload(currentArtist.bannerPath);
-  }
-
-  response.redirect("/dashboard?profileUpdated=1");
+  await handleProfileUpdate(
+    request,
+    response,
+    currentArtist,
+    {
+      formAction: "/dashboard/profile",
+      cancelUrl: "/dashboard"
+    },
+    "/dashboard?profileUpdated=1"
+  );
 });
 
 router.get("/dashboard/items/new", requireRole("artist"), (_request, response) => {
-  renderItemForm(response, {
-    mode: "new",
-    item: null,
-    photos: [],
-    values: {
-      name: "",
-      price: "",
-      currency: "EUR",
-      description: "",
-      availability: "available"
-    }
-  });
+  renderNewItemForm(response, artistDashboardPaths);
 });
 
 router.post("/dashboard/items", requireRole("artist"), async (request, response) => {
@@ -640,91 +937,7 @@ router.post("/dashboard/items", requireRole("artist"), async (request, response)
     return;
   }
 
-  try {
-    await runUpload(request, response, uploadImages.array("photos", 12));
-  } catch (error) {
-    renderItemForm(response, {
-      mode: "new",
-      item: null,
-      photos: [],
-      values: {
-        name: toTrimmedString(request.body.name),
-        price: toTrimmedString(request.body.price),
-        currency: toTrimmedString(request.body.currency) || "EUR",
-        description: toTrimmedString(request.body.description),
-        availability: "available"
-      },
-      errors: [(error as Error).message]
-    });
-    return;
-  }
-
-  const uploadedPhotos = uploadedArray(request);
-  const availability = toTrimmedString(request.body.availability);
-  const values: ItemFormValues = {
-    name: toTrimmedString(request.body.name),
-    price: toTrimmedString(request.body.price),
-    currency: (toTrimmedString(request.body.currency) || "EUR").toUpperCase(),
-    description: toTrimmedString(request.body.description),
-    availability: isItemAvailability(availability) ? availability : "available"
-  };
-  const priceCents = parsePriceCents(values.price);
-  const errors: string[] = [];
-
-  if (values.name.length === 0) {
-    errors.push("Item name is required.");
-  }
-
-  if (priceCents === null) {
-    errors.push("Price must be a number with up to two decimal places.");
-  }
-
-  if (!/^[A-Z]{3}$/.test(values.currency)) {
-    errors.push("Currency must be a 3-letter code.");
-  }
-
-  if (!isItemAvailability(availability)) {
-    errors.push("Availability is invalid.");
-  }
-
-  if (errors.length > 0 || priceCents === null) {
-    deleteUploadedFiles(uploadedPhotos);
-    renderItemForm(response, {
-      mode: "new",
-      item: null,
-      photos: [],
-      values,
-      errors
-    });
-    return;
-  }
-
-  try {
-    runInTransaction(() => {
-      const item = createItem({
-        artistId: currentArtist.id,
-        slug: createUniqueItemSlug(currentArtist.id, values.name),
-        name: values.name,
-        priceCents,
-        currency: values.currency,
-        description: values.description,
-        availability: values.availability
-      });
-
-      uploadedPhotos.forEach((photo, index) => {
-        createItemPhoto({
-          itemId: item.id,
-          path: storedUploadPath(photo),
-          sortOrder: index
-        });
-      });
-    });
-  } catch (error) {
-    deleteUploadedFiles(uploadedPhotos);
-    throw error;
-  }
-
-  response.redirect("/dashboard?itemCreated=1");
+  await handleCreateItem(request, response, currentArtist, artistDashboardPaths);
 });
 
 router.get("/dashboard/items/:itemId/edit", requireRole("artist"), (request, response) => {
@@ -739,18 +952,7 @@ router.get("/dashboard/items/:itemId/edit", requireRole("artist"), (request, res
     return;
   }
 
-  renderItemForm(response, {
-    mode: "edit",
-    item,
-    photos: listItemPhotosByItemId(item.id),
-    values: {
-      name: item.name,
-      price: formatPriceInput(item.priceCents),
-      currency: item.currency,
-      description: item.description,
-      availability: item.availability
-    }
-  });
+  renderEditItemForm(response, item, artistDashboardPaths);
 });
 
 router.post("/dashboard/items/:itemId", requireRole("artist"), async (request, response) => {
@@ -765,90 +967,7 @@ router.post("/dashboard/items/:itemId", requireRole("artist"), async (request, r
     return;
   }
 
-  try {
-    await runUpload(request, response, uploadImages.array("photos", 12));
-  } catch (error) {
-    renderItemForm(response, {
-      mode: "edit",
-      item,
-      photos: listItemPhotosByItemId(item.id),
-      values: {
-        name: toTrimmedString(request.body.name),
-        price: toTrimmedString(request.body.price),
-        currency: toTrimmedString(request.body.currency) || "EUR",
-        description: toTrimmedString(request.body.description),
-        availability: item.availability
-      },
-      errors: [(error as Error).message]
-    });
-    return;
-  }
-
-  const uploadedPhotos = uploadedArray(request);
-  const availability = toTrimmedString(request.body.availability);
-  const values: ItemFormValues = {
-    name: toTrimmedString(request.body.name),
-    price: toTrimmedString(request.body.price),
-    currency: (toTrimmedString(request.body.currency) || "EUR").toUpperCase(),
-    description: toTrimmedString(request.body.description),
-    availability: isItemAvailability(availability) ? availability : item.availability
-  };
-  const priceCents = parsePriceCents(values.price);
-  const errors: string[] = [];
-
-  if (values.name.length === 0) {
-    errors.push("Item name is required.");
-  }
-
-  if (priceCents === null) {
-    errors.push("Price must be a number with up to two decimal places.");
-  }
-
-  if (!/^[A-Z]{3}$/.test(values.currency)) {
-    errors.push("Currency must be a 3-letter code.");
-  }
-
-  if (!isItemAvailability(availability)) {
-    errors.push("Availability is invalid.");
-  }
-
-  if (errors.length > 0 || priceCents === null) {
-    deleteUploadedFiles(uploadedPhotos);
-    renderItemForm(response, {
-      mode: "edit",
-      item,
-      photos: listItemPhotosByItemId(item.id),
-      values,
-      errors
-    });
-    return;
-  }
-
-  try {
-    runInTransaction(() => {
-      updateItem(item.id, {
-        name: values.name,
-        priceCents,
-        currency: values.currency,
-        description: values.description,
-        availability: values.availability
-      });
-
-      const existingPhotoCount = listItemPhotosByItemId(item.id).length;
-      uploadedPhotos.forEach((photo, index) => {
-        createItemPhoto({
-          itemId: item.id,
-          path: storedUploadPath(photo),
-          sortOrder: existingPhotoCount + index
-        });
-      });
-    });
-  } catch (error) {
-    deleteUploadedFiles(uploadedPhotos);
-    throw error;
-  }
-
-  response.redirect("/dashboard?itemUpdated=1");
+  await handleUpdateItem(request, response, item, artistDashboardPaths);
 });
 
 router.post("/dashboard/items/:itemId/availability", requireRole("artist"), (request, response) => {
@@ -863,12 +982,7 @@ router.post("/dashboard/items/:itemId/availability", requireRole("artist"), (req
     return;
   }
 
-  const availability = toTrimmedString(request.body.availability);
-  if (isItemAvailability(availability)) {
-    updateItem(item.id, { availability });
-  }
-
-  response.redirect("/dashboard?itemUpdated=1");
+  handleUpdateItemAvailability(request, response, item, artistDashboardPaths);
 });
 
 router.post("/dashboard/reservations/:reservationId/status", requireRole("artist"), (request, response) => {
@@ -937,9 +1051,7 @@ router.post("/dashboard/items/:itemId/photos/:photoId/delete", requireRole("arti
     return;
   }
 
-  deleteItemPhoto(photo.id);
-  deleteStoredUpload(photo.path);
-  response.redirect(`/dashboard/items/${item.id}/edit`);
+  handleDeleteItemPhoto(response, item, photo, artistDashboardPaths);
 });
 
 router.post("/dashboard/items/:itemId/delete", requireRole("artist"), (request, response) => {
@@ -954,10 +1066,7 @@ router.post("/dashboard/items/:itemId/delete", requireRole("artist"), (request, 
     return;
   }
 
-  const photos = listItemPhotosByItemId(item.id);
-  deleteItem(item.id);
-  photos.forEach((photo) => deleteStoredUpload(photo.path));
-  response.redirect("/dashboard?itemDeleted=1");
+  handleDeleteItem(response, item, artistDashboardPaths);
 });
 
 router.get("/admin", requireRole("admin"), (request, response) => {
@@ -982,6 +1091,150 @@ router.post("/admin/registration-codes", requireRole("admin"), (_request, respon
   });
 
   redirectToAdmin(response, { generatedCode: registrationCode.code });
+});
+
+router.get("/admin/artists/:artistId/profile/edit", requireRole("admin"), (request, response) => {
+  const artist = getAdminEditableArtistOr404(response, parseId(request.params.artistId));
+  if (!artist) {
+    return;
+  }
+
+  const paths = toAdminArtistPaths(artist.id);
+  renderProfileForm(response, artist, profileValuesFromArtist(artist), [], {
+    formAction: `/admin/artists/${artist.id}/profile`,
+    cancelUrl: paths.dashboardPath
+  });
+});
+
+router.post("/admin/artists/:artistId/profile", requireRole("admin"), async (request, response) => {
+  const artist = getAdminEditableArtistOr404(response, parseId(request.params.artistId));
+  if (!artist) {
+    return;
+  }
+
+  const paths = toAdminArtistPaths(artist.id);
+  await handleProfileUpdate(
+    request,
+    response,
+    artist,
+    {
+      formAction: `/admin/artists/${artist.id}/profile`,
+      cancelUrl: paths.dashboardPath
+    },
+    `${paths.dashboardPath}?profileUpdated=1`
+  );
+});
+
+router.get("/admin/artists/:artistId/items", requireRole("admin"), (request, response) => {
+  const artist = getAdminEditableArtistOr404(response, parseId(request.params.artistId));
+  if (!artist) {
+    return;
+  }
+
+  renderArtistDashboard(request, response, artist, toAdminArtistPaths(artist.id), `${artist.name} items`);
+});
+
+router.get("/admin/artists/:artistId/items/new", requireRole("admin"), (request, response) => {
+  const artist = getAdminEditableArtistOr404(response, parseId(request.params.artistId));
+  if (!artist) {
+    return;
+  }
+
+  renderNewItemForm(response, toAdminArtistPaths(artist.id));
+});
+
+router.post("/admin/artists/:artistId/items", requireRole("admin"), async (request, response) => {
+  const artist = getAdminEditableArtistOr404(response, parseId(request.params.artistId));
+  if (!artist) {
+    return;
+  }
+
+  await handleCreateItem(request, response, artist, toAdminArtistPaths(artist.id));
+});
+
+router.get("/admin/artists/:artistId/items/:itemId/edit", requireRole("admin"), (request, response) => {
+  const artist = getAdminEditableArtistOr404(response, parseId(request.params.artistId));
+  if (!artist) {
+    return;
+  }
+
+  const itemId = parseId(request.params.itemId);
+  const item = itemId ? getArtistItemOr404(response, artist.id, itemId) : null;
+  if (!item) {
+    return;
+  }
+
+  renderEditItemForm(response, item, toAdminArtistPaths(artist.id));
+});
+
+router.post("/admin/artists/:artistId/items/:itemId", requireRole("admin"), async (request, response) => {
+  const artist = getAdminEditableArtistOr404(response, parseId(request.params.artistId));
+  if (!artist) {
+    return;
+  }
+
+  const itemId = parseId(request.params.itemId);
+  const item = itemId ? getArtistItemOr404(response, artist.id, itemId) : null;
+  if (!item) {
+    return;
+  }
+
+  await handleUpdateItem(request, response, item, toAdminArtistPaths(artist.id));
+});
+
+router.post("/admin/artists/:artistId/items/:itemId/availability", requireRole("admin"), (request, response) => {
+  const artist = getAdminEditableArtistOr404(response, parseId(request.params.artistId));
+  if (!artist) {
+    return;
+  }
+
+  const itemId = parseId(request.params.itemId);
+  const item = itemId ? getArtistItemOr404(response, artist.id, itemId) : null;
+  if (!item) {
+    return;
+  }
+
+  handleUpdateItemAvailability(request, response, item, toAdminArtistPaths(artist.id));
+});
+
+router.post(
+  "/admin/artists/:artistId/items/:itemId/photos/:photoId/delete",
+  requireRole("admin"),
+  (request, response) => {
+    const artist = getAdminEditableArtistOr404(response, parseId(request.params.artistId));
+    if (!artist) {
+      return;
+    }
+
+    const itemId = parseId(request.params.itemId);
+    const photoId = parseId(request.params.photoId);
+    const item = itemId ? getArtistItemOr404(response, artist.id, itemId) : null;
+    const photo = photoId ? findItemPhotoById(photoId) : null;
+
+    if (!item || !photo || photo.itemId !== item.id) {
+      response.status(404).render("pages/not-found.njk", {
+        title: "Photo not found"
+      });
+      return;
+    }
+
+    handleDeleteItemPhoto(response, item, photo, toAdminArtistPaths(artist.id));
+  }
+);
+
+router.post("/admin/artists/:artistId/items/:itemId/delete", requireRole("admin"), (request, response) => {
+  const artist = getAdminEditableArtistOr404(response, parseId(request.params.artistId));
+  if (!artist) {
+    return;
+  }
+
+  const itemId = parseId(request.params.itemId);
+  const item = itemId ? getArtistItemOr404(response, artist.id, itemId) : null;
+  if (!item) {
+    return;
+  }
+
+  handleDeleteItem(response, item, toAdminArtistPaths(artist.id));
 });
 
 router.post("/admin/artists/:artistId/delete", requireRole("admin"), (request, response) => {

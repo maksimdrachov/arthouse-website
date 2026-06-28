@@ -162,7 +162,7 @@
                 <th>Reservations</th>
                 <th>Sold</th>
                 <th>Joined</th>
-                <th>Action</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -177,9 +177,13 @@
                   <td>{{ listedArtist.soldItemCount }}</td>
                   <td>{{ listedArtist.createdAt }}</td>
                   <td>
-                    <form class="inline-form" action="/admin/artists/{{ listedArtist.id }}/delete" method="post" onsubmit="return confirm('Remove this artist account and all of their items?');">
-                      <button class="link-button danger-link" type="submit">Remove</button>
-                    </form>
+                    <div class="item-actions">
+                      <a class="link-button" href="/admin/artists/{{ listedArtist.id }}/profile/edit">Edit profile</a>
+                      <a class="link-button" href="/admin/artists/{{ listedArtist.id }}/items">Edit items</a>
+                      <form class="inline-form" action="/admin/artists/{{ listedArtist.id }}/delete" method="post" onsubmit="return confirm('Remove this artist account and all of their items?');">
+                        <button class="link-button danger-link" type="submit">Remove</button>
+                      </form>
+                    </div>
                   </td>
                 </tr>
               {% endfor %}

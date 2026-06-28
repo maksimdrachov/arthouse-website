@@ -20,7 +20,7 @@
         <img class="profile-banner" src="{{ artist.bannerPath }}" alt="">
       {% endif %}
 
-      <form class="form-grid" action="/dashboard/profile" method="post" enctype="multipart/form-data">
+      <form class="form-grid" action="{{ formAction }}" method="post" enctype="multipart/form-data">
         <label class="form-row">
           <span>Artist name</span>
           <input name="name" value="{{ values.name }}" autocomplete="name" required>
@@ -59,7 +59,7 @@
 
         <div class="form-actions">
           <button type="submit">Save profile</button>
-          <a href="/dashboard">Cancel</a>
+          <a href="{{ cancelUrl }}">Cancel</a>
         </div>
       </form>
     </div>

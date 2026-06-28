@@ -517,7 +517,7 @@ h3 {
 .home-load-more-actions {
     display: flex;
     justify-content: center;
-    margin-top: 14px;
+    margin: 14px 0 32px;
 }
 
 .home-load-more-button:disabled {

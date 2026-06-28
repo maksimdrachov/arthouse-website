@@ -10,7 +10,7 @@ if (homeItemGrid && homeLoadMoreButton) {
 
   const setLoading = (isLoading) => {
     homeLoadMoreButton.disabled = isLoading;
-    homeLoadMoreButton.textContent = isLoading ? "loading..." : "load";
+    homeLoadMoreButton.textContent = isLoading ? "loading..." : "load more";
   };
 
   const createTextSpan = (className, text) => {

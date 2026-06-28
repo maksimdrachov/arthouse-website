@@ -5,7 +5,12 @@
     <div class="window-body">
       <div class="section-heading">
         <h1>{{ artist.name }}</h1>
-        <a class="button-link" href="/dashboard/profile/edit">Edit profile</a>
+        <div class="item-actions">
+          {% if adminBackPath %}
+            <a href="{{ adminBackPath }}">Back to admin</a>
+          {% endif %}
+          <a class="button-link" href="{{ profileEditPath }}">Edit profile</a>
+        </div>
       </div>
 
       {% if registered %}
@@ -58,63 +63,65 @@
     </div>
   </section>
 
-  <section class="window">
-    <div class="window-body">
-      <h2>Reservations</h2>
+  {% if showReservations %}
+    <section class="window">
+      <div class="window-body">
+        <h2>Reservations</h2>
 
-      {% if reservations.length %}
-        <div class="table-scroll">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Item</th>
-                <th>Reserved</th>
-                <th>Telegram</th>
-                <th>Status</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for reservation in reservations %}
+        {% if reservations.length %}
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead>
                 <tr>
-                  <td>
-                    {% if reservation.item %}
-                      <a href="/products/{{ reservation.item.id }}">{{ reservation.item.name }}</a>
-                    {% else %}
-                      Removed item #{{ reservation.itemId }}
-                    {% endif %}
-                  </td>
-                  <td>{{ reservation.reservedAt }}</td>
-                  <td>{{ reservation.customerTelegram }}</td>
-                  <td>{{ reservation.status }}</td>
-                  <td>
-                    {% if reservation.status == "pending" %}
-                      <form class="inline-form" action="/dashboard/reservations/{{ reservation.id }}/status" method="post">
-                        <input type="hidden" name="status" value="paid">
-                        <button class="link-button" type="submit">Paid</button>
-                      </form>
-                      <form class="inline-form" action="/dashboard/reservations/{{ reservation.id }}/status" method="post" onsubmit="return confirm('Cancel this reservation?');">
-                        <input type="hidden" name="status" value="cancelled">
-                        <button class="link-button danger-link" type="submit">Cancel</button>
-                      </form>
-                    {% endif %}
-                  </td>
+                  <th>Item</th>
+                  <th>Reserved</th>
+                  <th>Telegram</th>
+                  <th>Status</th>
+                  <th>Action</th>
                 </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      {% else %}
-        <p>No reservations have been placed for your items yet.</p>
-      {% endif %}
-    </div>
-  </section>
+              </thead>
+              <tbody>
+                {% for reservation in reservations %}
+                  <tr>
+                    <td>
+                      {% if reservation.item %}
+                        <a href="/products/{{ reservation.item.id }}">{{ reservation.item.name }}</a>
+                      {% else %}
+                        Removed item #{{ reservation.itemId }}
+                      {% endif %}
+                    </td>
+                    <td>{{ reservation.reservedAt }}</td>
+                    <td>{{ reservation.customerTelegram }}</td>
+                    <td>{{ reservation.status }}</td>
+                    <td>
+                      {% if reservation.status == "pending" %}
+                        <form class="inline-form" action="/dashboard/reservations/{{ reservation.id }}/status" method="post">
+                          <input type="hidden" name="status" value="paid">
+                          <button class="link-button" type="submit">Paid</button>
+                        </form>
+                        <form class="inline-form" action="/dashboard/reservations/{{ reservation.id }}/status" method="post" onsubmit="return confirm('Cancel this reservation?');">
+                          <input type="hidden" name="status" value="cancelled">
+                          <button class="link-button danger-link" type="submit">Cancel</button>
+                        </form>
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <p>No reservations have been placed for your items yet.</p>
+        {% endif %}
+      </div>
+    </section>
+  {% endif %}
 
   <section class="window">
     <div class="window-body">
       <div class="section-heading">
         <h2>Store items</h2>
-        <a class="button-link" href="/dashboard/items/new">Add item</a>
+        <a class="button-link" href="{{ itemActionBasePath }}/new">Add item</a>
       </div>
 
       {% if items.length %}
@@ -133,7 +140,7 @@
                 <h3>{{ item.name }}</h3>
                 <p>{{ item.priceDisplay }}</p>
 
-                <form class="compact-form" action="/dashboard/items/{{ item.id }}/availability" method="post">
+                <form class="compact-form" action="{{ itemActionBasePath }}/{{ item.id }}/availability" method="post">
                   <label>
                     <span>Availability</span>
                     <select name="availability">
@@ -146,8 +153,8 @@
                 </form>
 
                 <div class="item-actions">
-                  <a href="/dashboard/items/{{ item.id }}/edit">Edit</a>
-                  <form class="inline-form" action="/dashboard/items/{{ item.id }}/delete" method="post" onsubmit="return confirm('Remove this item?');">
+                  <a href="{{ itemActionBasePath }}/{{ item.id }}/edit">Edit</a>
+                  <form class="inline-form" action="{{ itemActionBasePath }}/{{ item.id }}/delete" method="post" onsubmit="return confirm('Remove this item?');">
                     <button class="link-button danger-link" type="submit">Remove</button>
                   </form>
                 </div>
