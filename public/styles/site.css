@@ -514,6 +514,18 @@ h3 {
     grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.home-load-more-actions {
+    display: flex;
+    justify-content: center;
+    margin-top: 14px;
+}
+
+.home-load-more-button:disabled {
+    border-style: inset;
+    color: #555555;
+    cursor: wait;
+}
+
 .public-item-card {
     display: grid;
     gap: 6px;

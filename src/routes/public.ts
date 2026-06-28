@@ -17,11 +17,22 @@ import {
 import type { Artist, Item, ItemPhoto, Reservation } from "../db/index.js";
 
 const router = Router();
+const HOME_INITIAL_ITEM_COUNT = 18;
+const HOME_LOAD_MORE_ITEM_COUNT = 12;
 
 interface PublicItemCard extends Item {
   artist: Artist | null;
   primaryPhoto: ItemPhoto | null;
   priceDisplay: string;
+}
+
+interface PublicItemCardResponse {
+  id: number;
+  href: string;
+  name: string;
+  artistName: string | null;
+  priceDisplay: string;
+  primaryPhotoPath: string | null;
 }
 
 interface PublicArtistProfile extends Artist {
@@ -43,6 +54,27 @@ const parseId = (value: unknown): number | null => {
 
   const parsed = Number.parseInt(value, 10);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+};
+
+const parseItemIds = (value: unknown): number[] => {
+  const rawValues = Array.isArray(value) ? value : [value];
+  const itemIds = new Set<number>();
+
+  for (const rawValue of rawValues) {
+    if (typeof rawValue !== "string") {
+      continue;
+    }
+
+    for (const part of rawValue.split(",")) {
+      const parsed = Number.parseInt(part, 10);
+
+      if (Number.isInteger(parsed) && parsed > 0) {
+        itemIds.add(parsed);
+      }
+    }
+  }
+
+  return [...itemIds].slice(0, 500);
 };
 
 const toTrimmedString = (value: unknown): string => {
@@ -94,6 +126,17 @@ const toPublicItemCard = (item: Item): PublicItemCard => {
   };
 };
 
+const toPublicItemCardResponse = (item: PublicItemCard): PublicItemCardResponse => {
+  return {
+    id: item.id,
+    href: `/products/${item.id}`,
+    name: item.name,
+    artistName: item.artist?.name ?? null,
+    priceDisplay: item.priceDisplay,
+    primaryPhotoPath: item.primaryPhoto?.path ?? null
+  };
+};
+
 const renderNotFound = (response: Response, title: string): void => {
   response.status(404).render("pages/not-found.njk", {
     title
@@ -139,10 +182,25 @@ const renderReserve = (
 };
 
 router.get("/", (_request, response) => {
+  const items = listRandomItems(HOME_INITIAL_ITEM_COUNT + 1);
+
   response.render("pages/home.njk", {
     title: "ArtHouse",
-    items: listRandomItems(9).map(toPublicItemCard),
+    items: items.slice(0, HOME_INITIAL_ITEM_COUNT).map(toPublicItemCard),
+    hasMoreItems: items.length > HOME_INITIAL_ITEM_COUNT,
     artists: listStoreArtistsRandomized()
+  });
+});
+
+router.get("/api/home-items", (request, response) => {
+  const excludedItemIds = parseItemIds(request.query.exclude);
+  const items = listRandomItems(HOME_LOAD_MORE_ITEM_COUNT + 1, excludedItemIds).map(
+    toPublicItemCard
+  );
+
+  response.json({
+    items: items.slice(0, HOME_LOAD_MORE_ITEM_COUNT).map(toPublicItemCardResponse),
+    hasMoreItems: items.length > HOME_LOAD_MORE_ITEM_COUNT
   });
 });
 

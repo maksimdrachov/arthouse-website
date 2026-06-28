@@ -113,19 +113,32 @@ export const listItemsByAvailability = (availability: ItemAvailability): Item[] 
     .map(mapItem);
 };
 
-export const listRandomItems = (limit: number): Item[] => {
+export const listRandomItems = (limit: number, excludedIds: number[] = []): Item[] => {
+  const normalizedLimit = Math.max(0, Math.floor(limit));
+  const normalizedExcludedIds = [
+    ...new Set(excludedIds.filter((id) => Number.isInteger(id) && id > 0))
+  ];
+  const excludedClause = normalizedExcludedIds.length
+    ? `AND items.id NOT IN (${normalizedExcludedIds.map(() => "?").join(", ")})`
+    : "";
+
+  if (normalizedLimit === 0) {
+    return [];
+  }
+
   return getDatabase()
-    .prepare<[number], ItemRow>(
+    .prepare<unknown[], ItemRow>(
       `
         SELECT items.*
         FROM items
         JOIN artists ON artists.id = items.artist_id
         WHERE artists.role = 'artist' AND items.availability = 'available'
+        ${excludedClause}
         ORDER BY RANDOM()
         LIMIT ?
       `
     )
-    .all(limit)
+    .all(...normalizedExcludedIds, normalizedLimit)
     .map(mapItem);
 };
 

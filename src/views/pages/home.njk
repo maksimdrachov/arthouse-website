@@ -4,9 +4,9 @@
   <section class="window home-transparent-window">
     <div class="window-body">
       {% if items.length %}
-        <div class="public-item-grid public-item-grid-home">
+        <div class="public-item-grid public-item-grid-home" data-home-item-grid>
           {% for item in items %}
-            <a class="public-item-card" href="/products/{{ item.id }}">
+            <a class="public-item-card" href="/products/{{ item.id }}" data-home-item-id="{{ item.id }}">
               <span class="public-item-photo">
                 {% if item.primaryPhoto %}
                   <img src="{{ item.primaryPhoto.path }}" alt="">
@@ -22,6 +22,11 @@
             </a>
           {% endfor %}
         </div>
+        {% if hasMoreItems %}
+          <div class="home-load-more-actions">
+            <button class="home-load-more-button" type="button" data-home-load-more data-home-load-more-url="/api/home-items">load more</button>
+          </div>
+        {% endif %}
       {% else %}
         <p>No items are available yet. Seed demo data with <code>npm run seed:demo</code>.</p>
       {% endif %}
@@ -48,4 +53,8 @@
       {% endif %}
     </div>
   </section>
+{% endblock %}
+
+{% block scripts %}
+  <script src="/scripts/home-load-more.js"></script>
 {% endblock %}
