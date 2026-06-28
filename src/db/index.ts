@@ -15,6 +15,7 @@ export {
   findStoreArtistBySlug,
   listArtists,
   listStoreArtistsRandomized,
+  listStoreArtistsWithItemsRandomized,
   updateArtist
 } from "./artists.js";
 export {

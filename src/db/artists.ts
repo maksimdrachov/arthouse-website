@@ -127,6 +127,25 @@ export const listStoreArtistsRandomized = (): Artist[] => {
     .map(mapArtist);
 };
 
+export const listStoreArtistsWithItemsRandomized = (): Artist[] => {
+  return getDatabase()
+    .prepare<[], ArtistRow>(
+      `
+        SELECT *
+        FROM artists
+        WHERE role = 'artist'
+          AND EXISTS (
+            SELECT 1
+            FROM items
+            WHERE items.artist_id = artists.id
+          )
+        ORDER BY RANDOM()
+      `
+    )
+    .all()
+    .map(mapArtist);
+};
+
 export const updateArtist = (id: number, input: UpdateArtistInput): Artist | null => {
   const assignments: string[] = [];
   const values: unknown[] = [];

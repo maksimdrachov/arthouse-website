@@ -7,7 +7,7 @@ import {
   findItemById,
   findReservationById,
   findStoreArtistBySlug,
-  listStoreArtistsRandomized,
+  listStoreArtistsWithItemsRandomized,
   listItemPhotosByItemId,
   listItemsByArtistId,
   listRandomItems,
@@ -188,7 +188,7 @@ router.get("/", (_request, response) => {
     title: "ArtHouse",
     items: items.slice(0, HOME_INITIAL_ITEM_COUNT).map(toPublicItemCard),
     hasMoreItems: items.length > HOME_INITIAL_ITEM_COUNT,
-    artists: listStoreArtistsRandomized()
+    artists: listStoreArtistsWithItemsRandomized()
   });
 });
 
