@@ -10,7 +10,7 @@ if (homeItemGrid && homeLoadMoreButton) {
 
   const setLoading = (isLoading) => {
     homeLoadMoreButton.disabled = isLoading;
-    homeLoadMoreButton.textContent = isLoading ? "loading..." : "load more";
+    homeLoadMoreButton.textContent = isLoading ? "loading..." : "load";
   };
 
   const createTextSpan = (className, text) => {
@@ -52,7 +52,7 @@ if (homeItemGrid && homeLoadMoreButton) {
   homeLoadMoreButton.addEventListener("click", async () => {
     const url = new URL(
       homeLoadMoreButton.dataset.homeLoadMoreUrl || "/api/home-items",
-      window.location.origin
+      window.location.origin,
     );
     url.searchParams.set("exclude", getLoadedItemIds().join(","));
     setLoading(true);
@@ -60,12 +60,12 @@ if (homeItemGrid && homeLoadMoreButton) {
     try {
       const response = await fetch(url, {
         headers: {
-          Accept: "application/json"
-        }
+          Accept: "application/json",
+        },
       });
 
       if (!response.ok) {
-        throw new Error(`Load more request failed with status ${response.status}.`);
+        throw new Error(`Load request failed with status ${response.status}.`);
       }
 
       const data = await response.json();
