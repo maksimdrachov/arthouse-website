@@ -251,6 +251,55 @@ p {
     line-height: 1.4;
 }
 
+.banner-cropper {
+    display: grid;
+    gap: 10px;
+}
+
+.banner-cropper[hidden] {
+    display: none;
+}
+
+.banner-cropper-frame {
+    border: 2px inset #d1d1d1;
+    background: #ffffff;
+    overflow: hidden;
+}
+
+.banner-cropper-frame canvas {
+    aspect-ratio: 1100 / 250;
+    cursor: grab;
+    display: block;
+    max-width: 100%;
+    touch-action: none;
+    width: 100%;
+}
+
+.banner-cropper-frame canvas:active {
+    cursor: grabbing;
+}
+
+.banner-cropper-controls {
+    align-items: end;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.banner-cropper-zoom {
+    display: grid;
+    gap: 4px;
+    min-width: min(260px, 100%);
+}
+
+.banner-cropper-zoom span {
+    font-weight: 700;
+}
+
+.banner-cropper-zoom input {
+    width: 100%;
+}
+
 .form-row input,
 .form-row select,
 .form-row textarea {

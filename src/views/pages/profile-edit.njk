@@ -57,6 +57,19 @@
           <span class="field-warning" id="banner-dimension-warning" role="alert" hidden data-banner-warning></span>
         </label>
 
+        <div class="banner-cropper" hidden data-banner-cropper>
+          <div class="banner-cropper-frame">
+            <canvas width="1100" height="250" data-banner-crop-canvas></canvas>
+          </div>
+          <div class="banner-cropper-controls">
+            <label class="banner-cropper-zoom">
+              <span>Zoom</span>
+              <input type="range" min="1" max="4" step="0.01" value="1" data-banner-crop-zoom>
+            </label>
+            <button type="button" data-banner-crop-apply>Apply crop</button>
+          </div>
+        </div>
+
         <div class="form-actions">
           <button type="submit">Save profile</button>
           <a href="{{ cancelUrl }}">Cancel</a>
